@@ -4,11 +4,13 @@ A browser-based tool for gel electrophoresis image analysis.
 
 **Web app:** https://raingel.github.io/Gel56/
 
-Gel56 runs in your browser. No installation or server upload is needed. The interface is currently in Traditional Chinese.
+Gel56 runs in your browser. No installation or server upload is needed. The interface is available in Traditional Chinese (Taiwan), English, and Japanese. Your language choice is remembered in your browser.
 
 ## Features
 
 - Rotate images 90° left or right to fix their orientation, then align, crop, and adjust them.
+- Switch the interface between Traditional Chinese (Taiwan), English, and Japanese.
+- Follow Step 1–10 and hover over ? for short explanations.
 - Correct uneven background illumination.
 - Set gel lanes and select DNA ladder lanes.
 - Detect bands automatically, then review or edit them manually.
