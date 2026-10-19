@@ -14,7 +14,7 @@ Gel56 runs in your browser. No installation or server upload is needed. The inte
 - Correct uneven background illumination.
 - Set gel lanes and select DNA ladder lanes.
 - Detect bands automatically, then review or edit them manually.
-- Estimate fragment sizes from a DNA ladder. Local log-linear interpolation between adjacent ladder bands is the default; global semi-log regression remains available.
+- Estimate fragment sizes from a DNA ladder using local log-linear interpolation (default) or monotone PCHIP interpolation.
 - Measure relative band intensity within each lane.
 - Export band data as CSV or TSV, or make an exploratory presence/absence matrix.
 - Name each lane or sample. Names are saved in `.gelproj` and included in result tables and charts.
@@ -35,8 +35,8 @@ Gel56 runs in your browser. No installation or server upload is needed. The inte
 ## Notes
 
 - Check all detected bands against the gel image, especially weak bands.
-- For broad-range ladders, a single global semi-log line may be inaccurate. Local interpolation does not extrapolate beyond the outer ladder bands.
-- Saved projects retain their chosen sizing method. Old projects without a stored choice use local interpolation.
+- For broad-range ladders, local log-linear interpolation avoids fitting one straight line across all marker bands. PCHIP is a smooth, shape-preserving alternative. Neither method extrapolates outside the ladder range.
+- Saved projects retain PCHIP or local interpolation settings. Older projects that used global semi-log regression are converted to the local default and their band sizes are recalculated when opened.
 - Relative band intensity is intended for comparisons within a lane, not absolute comparisons across lanes.
 - The presence/absence matrix groups bands by estimated size. Bands in the same size group are not necessarily homologous.
 - All three charts use Dice distances from binary band presence/absence (not band intensity). Unresolved bands and all-zero samples are excluded.
