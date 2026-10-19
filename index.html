@@ -1108,6 +1108,7 @@
 
     <button id="calculateResultsBtn" class="primary" disabled>計算大小與亮度</button>
     <button id="openExportBtn" disabled>匯出結果</button>
+    <div class="tool-action"><button id="openDendrogramBtn" type="button">UPGMA 樹狀圖</button><span class="help-tip" tabindex="0" role="note" data-tip="依據 1/0 band matrix 使用 Dice similarity 與 UPGMA 分群。這是指紋相似性圖，不是親緣演化樹。">?</span></div>
 
     <div id="analysisWarnings" class="warning-panel" hidden aria-live="polite"></div>
   </div>
@@ -5765,6 +5766,14 @@
         downloadExportText
       );
 
+      // The dendrogram uses exactly the same provisional bins as matrix CSV export.
+      window.Gel56MatrixCSV = () => {
+        if (!resultsValid || !lanesConfirmed) {
+          throw Error("請先完成「計算大小與亮度」，再帶入目前的 1/0 matrix。");
+        }
+        return buildBinaryMatrixExport().text;
+      };
+
       updateLadderSizeSummary();
       updateAnalysisControls();
       rebuildLadderChoices();
@@ -5772,5 +5781,6 @@
     })();
   </script>
   <script src="./i18n.js"></script>
+  <script src="./upgma.js"></script>
 </body>
 </html>
