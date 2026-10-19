@@ -17,7 +17,9 @@ Gel56 runs in your browser. No installation or server upload is needed. The inte
 - Estimate fragment sizes from a DNA ladder using semi-log regression or local interpolation.
 - Measure relative band intensity within each lane.
 - Export band data as CSV or TSV, or make an exploratory presence/absence matrix.
-- Build a Dice similarity + UPGMA fingerprint dendrogram from the current matrix or pasted CSV. Export the tree as SVG or Newick.
+- Name each lane or sample. Names are saved in `.gelproj` and included in result tables and charts.
+- View Dice/UPGMA dendrograms, pairwise similarity heatmaps, and 2D PCoA plots from the same band matrix.
+- Use the current matrix or paste a CSV; export each chart as SVG and UPGMA as Newick.
 - Save a `.gelproj` file with the original image and analysis settings.
 
 ## How to use
@@ -26,14 +28,17 @@ Gel56 runs in your browser. No installation or server upload is needed. The inte
 2. Load a gel image. If it appears sideways, rotate it 90° left or right before drawing the horizontal guide line.
 3. Adjust the image and set the lane positions.
 4. Select the DNA ladder lanes and detect bands.
-5. Review the band calls and enter the ladder fragment sizes.
-6. Calculate fragment sizes and export the results, or save the project to continue later.
+5. Mark the ladder lanes, enter sample names, then review band calls and enter ladder fragment sizes.
+6. Calculate fragment sizes, export the results, or open Fingerprint charts for UPGMA, heatmap and PCoA.
+7. Save the `.gelproj` file to continue later.
 
 ## Notes
 
 - Check all detected bands against the gel image, especially weak bands.
 - Relative band intensity is intended for comparisons within a lane, not absolute comparisons across lanes.
 - The presence/absence matrix groups bands by estimated size. Bands in the same size group are not necessarily homologous.
-- UPGMA uses binary band presence/absence (not band intensity), excludes unresolved bands and all-zero samples, and does not estimate bootstrap support. The dendrogram shows fingerprint similarity, not a phylogeny.
+- All three charts use Dice distances from binary band presence/absence (not band intensity). Unresolved bands and all-zero samples are excluded.
+- PCoA is a 2D approximation; Dice distance can give negative eigenvalues. Axis percentages are calculated from positive eigenvalues.
+- No bootstrap values are calculated. These charts show fingerprint similarity and are not phylogenetic evidence.
 - Keep the original gel images. A `.gelproj` file includes the original image and processing steps.
 - Gel56 is under development. Analysis results should be checked before use in a publication.
