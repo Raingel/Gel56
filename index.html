@@ -831,6 +831,70 @@
       }
     }
 
+
+    .language-switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+    .language-switch label { color: var(--muted); }
+    .language-switch select {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 5px 8px;
+      font: inherit;
+    }
+    .step-heading { display: inline-flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+    .help-tip {
+      display: inline-grid;
+      width: 18px;
+      height: 18px;
+      place-items: center;
+      flex: 0 0 18px;
+      border: 1px solid #778593;
+      border-radius: 50%;
+      background: #26323c;
+      color: #d8e7f2;
+      font-size: 12px;
+      line-height: 1;
+      font-weight: 700;
+      cursor: help;
+      position: relative;
+      vertical-align: middle;
+      outline-offset: 3px;
+    }
+    .help-tip:hover, .help-tip:focus-visible {
+      background: #34536c;
+      border-color: var(--accent);
+    }
+    .help-tip::after {
+      display: none;
+      content: attr(data-tip);
+      position: absolute;
+      z-index: 50;
+      top: calc(100% + 8px);
+      left: 0;
+      width: 260px;
+      max-width: min(260px, 75vw);
+      box-sizing: border-box;
+      padding: 9px 11px;
+      border: 1px solid #60778a;
+      border-radius: 6px;
+      background: #242d35;
+      color: #f1f5f8;
+      box-shadow: 0 7px 20px rgba(0,0,0,.55);
+      font-weight: 400;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: normal;
+      text-align: left;
+      pointer-events: none;
+    }
+    .help-tip:hover::after, .help-tip:focus-visible::after { display: block; }
   </style>
 </head>
 <body>
@@ -839,10 +903,11 @@
   <header>
     <h1>Gel56</h1>
     <div class="subtitle">.gelproj 預設包含原圖；一次載入即可完整恢復</div>
+    <div class="language-switch"><label for="languageSelect">語言</label><select id="languageSelect" aria-label="Language"><option value="zh-TW">台灣中文</option><option value="en">English</option><option value="ja">日本語</option></select></div>
   </header>
 
   <div class="toolbar">
-    <label id="imageLoadLabel" class="file-label" for="fileInput">載入電泳圖</label>
+    <label id="imageLoadLabel" class="file-label" for="fileInput">Step 1 · 載入電泳圖</label>
     <input id="fileInput" type="file" accept="image/*" />
 
     <button id="saveProjectBtn" disabled>儲存完整專案</button>
@@ -853,10 +918,10 @@
     <button id="rotateLeft90Btn" disabled>↶ 向左轉 90°</button>
     <button id="rotateRight90Btn" disabled>↷ 向右轉 90°</button>
 
-    <button id="lineModeBtn" disabled>1. 拉水平基準線</button>
+    <button id="lineModeBtn" disabled title="沿膠圖本來應該水平的邊緣拉一條線，再按校正。">Step 2 · 拉水平基準線</button>
     <button id="rotateBtn" class="primary" disabled>依基準線校正水平</button>
 
-    <button id="cropModeBtn" disabled>2. 框選裁切範圍</button>
+    <button id="cropModeBtn" disabled title="先選範圍，再按套用裁切。裁切不會覆蓋原圖。">Step 3 · 框選裁切範圍</button>
     <button id="cropBtn" class="primary" disabled>套用裁切</button>
 
     <button id="resetBtn" class="danger" disabled>回到原圖</button>
@@ -866,8 +931,8 @@
 
   <div id="adjustPanel" class="adjust-panel" aria-disabled="true">
     <div class="adjust-title">
-      3. 影像調整
-      <small>先裁切再校正背景；即時預覽，套用後才寫入影像</small>
+      <span class="step-heading">Step 4 · 影像調整 <span class="help-tip" tabindex="0" role="note" data-tip="背景校正會改變亮度。需要比較 band 亮度時，建議使用原始影像。">?</span></span>
+      
     </div>
 
     <label class="check-control" for="flatFieldInput">
@@ -891,7 +956,7 @@
       <input id="flatFieldEqualizeInput" type="checkbox" disabled>
       <span>額外直方圖均衡（僅供強化辨識，不建議量化亮度）</span>
     </label>
-    <div class="panel-note">參考 notebook：灰階 → Gaussian 背景估計 → 原圖÷背景×背景中位數。半徑以原始像素為單位；直方圖均衡預設關閉。</div>
+    <div class="panel-note"><span class="help-tip" tabindex="0" role="note" data-tip="參考 notebook：灰階 → Gaussian 背景估計 → 原圖÷背景×背景中位數。半徑以原始像素為單位；直方圖均衡預設關閉。">?</span></div>
 
     <label class="range-control" for="brightnessInput">
       <span>亮度</span>
@@ -917,8 +982,8 @@
 
   <div id="lanePanel" class="analysis-panel" aria-disabled="true">
     <div class="adjust-title">
-      4. Lane 設定
-      <small>指定第一與最後一條 lane 的中心，再由程式等距均分</small>
+      <span class="step-heading">Step 5 · Lane 設定 <span class="help-tip" tabindex="0" role="note" data-tip="每條 lane 應有相同的方向；請指定第一和最後一條的中心。">?</span></span>
+      
     </div>
 
     <label class="number-control" for="laneCountInput">
@@ -935,8 +1000,8 @@
 
   <div id="ladderPanel" class="analysis-panel ladder-panel" aria-disabled="true">
     <div class="adjust-title">
-      Ladder lanes
-      <small>勾選作為 DNA ladder／marker 的 lane</small>
+      <span class="step-heading">Step 6 · Ladder lanes <span class="help-tip" tabindex="0" role="note" data-tip="勾選含有 DNA ladder 的 lanes。">?</span></span>
+      
     </div>
     <div id="ladderChoices" class="ladder-choices">
       <span class="panel-note">確認 lanes 後可選擇</span>
@@ -945,8 +1010,8 @@
 
   <div id="bandPanel" class="analysis-panel" aria-disabled="true">
     <div class="adjust-title">
-      5. Band 偵測
-      <small>預設保留既有 band；需要時才開啟自動更新</small>
+      <span class="step-heading">Step 7 · Band 偵測 <span class="help-tip" tabindex="0" role="note" data-tip="自動偵測後請逐條確認，弱 band 可手動補上。">?</span></span>
+      
     </div>
 
     <label class="range-control" for="bandSensitivityInput">
@@ -963,12 +1028,12 @@
     <button id="detectBandsBtn" class="primary" disabled>自動偵測 bands</button>
     <button id="clearBandsBtn" disabled>清除 bands</button>
 
-    <span class="panel-note">未勾選時，亮度、對比、灰階與敏感度調整都不會移除或重建既有 band。勾選後會重新偵測，並覆蓋人工移動、新增與刪除。</span>
+    <span class="panel-note"><span class="help-tip" tabindex="0" role="note" data-tip="未勾選時，亮度、對比、灰階與敏感度調整都不會移除或重建既有 band。勾選後會重新偵測，並覆蓋人工移動、新增與刪除。">?</span></span>
   </div>
 
   <div id="profilePanel" class="analysis-panel" aria-disabled="true">
-    <div class="adjust-title">6. Lane 訊號剖面與弱 band 檢查
-      <small>偵測依處理後影像；低於門檻的局部峰值只提供人工參考</small>
+    <div class="adjust-title"><span class="step-heading">Step 8 · Lane 訊號剖面與弱 band 檢查 <span class="help-tip" tabindex="0" role="note" data-tip="橘色點是低於門檻的候選峰，不會自動變成 band。">?</span></span>
+      
     </div>
     <div class="profile-controls">
       <label for="profileLaneSelect">檢視</label>
@@ -986,8 +1051,8 @@
 
   <div id="calibrationPanel" class="analysis-panel ladder-panel" aria-disabled="true">
     <div class="adjust-title">
-      7. Ladder 片段大小
-      <small>依膠圖由上到下輸入；所有 ladder lanes 共用同一組片段</small>
+      <span class="step-heading">Step 9 · Ladder 片段大小 <span class="help-tip" tabindex="0" role="note" data-tip="每條 ladder lane 的 band 數需與輸入的片段大小數量一致。">?</span></span>
+      
     </div>
 
     <label class="field-control wide-control" for="ladderSizesInput">
@@ -1002,8 +1067,8 @@
 
   <div id="resultPanel" class="analysis-panel result-controls" aria-disabled="true">
     <div class="adjust-title">
-      8. Band 大小與亮度
-      <small>選擇大小推估方法與畫面標示內容</small>
+      <span class="step-heading">Step 10 · Band 大小與亮度 <span class="help-tip" tabindex="0" role="note" data-tip="Band 大小是依 ladder 推估；亮度只適合 lane 內相對比較。">?</span></span>
+      
     </div>
 
     <label class="field-control" for="sizeMethodSelect">
@@ -1022,7 +1087,7 @@
       </select>
     </label>
 
-    <span class="panel-note">原始影像模式保留原始像素強度，不受 flat-field、亮度、對比或直方圖均衡影響。兩種模式都先扣除各 lane 的縱向背景；亮度仍僅限 lane 內相對比較。</span>
+    <span class="panel-note"><span class="help-tip" tabindex="0" role="note" data-tip="原始影像模式保留原始像素強度，不受 flat-field、亮度、對比或直方圖均衡影響。兩種模式都先扣除各 lane 的縱向背景；亮度仍僅限 lane 內相對比較。">?</span></span>
 
     <label class="field-control" for="bandLabelModeSelect">
       <span>Band 標示內容</span>
@@ -3798,7 +3863,7 @@
         ctx.fillStyle = "#0d1115"; ctx.fillRect(0,0,W,H);
         if (!lanesConfirmed || !lanes.length || !imageCanvas.width) {
           ctx.font="16px system-ui";ctx.fillStyle="#a8b0b8";
-          ctx.fillText("確認 lanes 後顯示背景扣除訊號",25,H/2);
+          ctx.fillText(window.gel56Translate ? window.gel56Translate("確認 lanes 後顯示背景扣除訊號") : "確認 lanes 後顯示背景扣除訊號",25,H/2);
           profileSummary.textContent = "確認 lanes 後可檢查各條 lane；點擊剖面圖可新增人工 band。";
           return;
         }
@@ -5704,5 +5769,6 @@
       scheduleProfileRender();
     })();
   </script>
+  <script src="./i18n.js"></script>
 </body>
 </html>
