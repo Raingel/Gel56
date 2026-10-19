@@ -850,6 +850,9 @@
     <label class="file-label" for="projectInput">載入專案</label>
     <input id="projectInput" type="file" accept=".gelproj,application/json" />
 
+    <button id="rotateLeft90Btn" disabled>↶ 向左轉 90°</button>
+    <button id="rotateRight90Btn" disabled>↷ 向右轉 90°</button>
+
     <button id="lineModeBtn" disabled>1. 拉水平基準線</button>
     <button id="rotateBtn" class="primary" disabled>依基準線校正水平</button>
 
@@ -1046,7 +1049,7 @@
     <summary>操作說明與專案檔說明</summary>
     <div class="help-content">
 <strong>操作方式：</strong><br>
-      ① 載入圖片後，按「拉水平基準線」，沿著你認為本來應該水平的邊緣拖曳一條線。<br>
+      ① 載入圖片後，若方向不正確，可先按「向左轉 90°」或「向右轉 90°」；再按「拉水平基準線」，沿著應該水平的邊緣拖曳一條線。<br>
       ② 按「依基準線校正水平」，程式會把該線旋轉成水平。<br>
       ③ 按「框選裁切範圍」，拖曳矩形選取膠體，再按「套用裁切」。<br>
       ④ 對中央偏亮、邊緣偏暗的膠圖勾選「校正背景照明不均」，預設半徑 100 px；必要時調整強度。會自動轉為灰階。直方圖均衡預設關閉，避免改變 band 亮度比例。確認後按「套用影像調整」，可撤銷最近一次已套用的影像調整。<br>
@@ -1155,6 +1158,8 @@
       const downloadImageBtn = document.getElementById("downloadImageBtn");
       const projectInput = document.getElementById("projectInput");
       const lineModeBtn = document.getElementById("lineModeBtn");
+      const rotateLeft90Btn = document.getElementById("rotateLeft90Btn");
+      const rotateRight90Btn = document.getElementById("rotateRight90Btn");
       const rotateBtn = document.getElementById("rotateBtn");
       const cropModeBtn = document.getElementById("cropModeBtn");
       const cropBtn = document.getElementById("cropBtn");
@@ -1885,6 +1890,8 @@
         saveProjectBtn.disabled = !enabled;
         downloadImageBtn.disabled = !enabled;
         lineModeBtn.disabled = !enabled;
+        rotateLeft90Btn.disabled = !enabled;
+        rotateRight90Btn.disabled = !enabled;
         cropModeBtn.disabled = !enabled;
         resetBtn.disabled = !enabled;
 
@@ -3183,37 +3190,39 @@
         return angle;
       }
 
-      function rotateWorkingImage(angleDegrees) {
+      function rotatedCanvas(source, angleDegrees) {
         const angleRadians = angleDegrees * Math.PI / 180;
-        const source = workingCanvas;
         const sourceWidth = source.width;
         const sourceHeight = source.height;
+        const isRightAngle = angleDegrees % 90 === 0;
 
-        const cos = Math.abs(Math.cos(angleRadians));
-        const sin = Math.abs(Math.sin(angleRadians));
-        const outputWidth = Math.ceil(
-          sourceWidth * cos + sourceHeight * sin
-        );
-        const outputHeight = Math.ceil(
-          sourceWidth * sin + sourceHeight * cos
-        );
+        // Exact dimensions for 90° turns; trig-based ceil() can add 1 px.
+        const swapAxes = isRightAngle && Math.abs(angleDegrees / 90) % 2 === 1;
+        const outputWidth = isRightAngle
+          ? (swapAxes ? sourceHeight : sourceWidth)
+          : Math.ceil(sourceWidth * Math.abs(Math.cos(angleRadians)) +
+                      sourceHeight * Math.abs(Math.sin(angleRadians)));
+        const outputHeight = isRightAngle
+          ? (swapAxes ? sourceWidth : sourceHeight)
+          : Math.ceil(sourceWidth * Math.abs(Math.sin(angleRadians)) +
+                      sourceHeight * Math.abs(Math.cos(angleRadians)));
 
         const rotated = document.createElement("canvas");
         rotated.width = outputWidth;
         rotated.height = outputHeight;
 
         const ctx = rotated.getContext("2d");
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
+        // Quarter turns only rearrange pixels; they should not blur bands.
+        ctx.imageSmoothingEnabled = !isRightAngle;
+        if (!isRightAngle) ctx.imageSmoothingQuality = "high";
         ctx.translate(outputWidth / 2, outputHeight / 2);
         ctx.rotate(angleRadians);
-        ctx.drawImage(
-          source,
-          -sourceWidth / 2,
-          -sourceHeight / 2
-        );
+        ctx.drawImage(source, -sourceWidth / 2, -sourceHeight / 2);
+        return rotated;
+      }
 
-        workingCanvas = rotated;
+      function rotateWorkingImage(angleDegrees) {
+        workingCanvas = rotatedCanvas(workingCanvas, angleDegrees);
       }
 
       function cropWorkingImage(rect) {
@@ -3259,21 +3268,7 @@
         source.getContext("2d").drawImage(originalBitmap, 0, 0);
         for (const op of imageOperations) {
           if (op?.type === "rotate") {
-            const radians = Number(op.angleDegrees) * Math.PI / 180;
-            const sw = source.width, sh = source.height;
-            const ow = Math.ceil(sw * Math.abs(Math.cos(radians)) +
-                                 sh * Math.abs(Math.sin(radians)));
-            const oh = Math.ceil(sw * Math.abs(Math.sin(radians)) +
-                                 sh * Math.abs(Math.cos(radians)));
-            const out = document.createElement("canvas");
-            out.width = ow; out.height = oh;
-            const cx = out.getContext("2d");
-            cx.imageSmoothingEnabled = true;
-            cx.imageSmoothingQuality = "high";
-            cx.translate(ow / 2, oh / 2);
-            cx.rotate(radians);
-            cx.drawImage(source, -sw / 2, -sh / 2);
-            source = out;
+            source = rotatedCanvas(source, Number(op.angleDegrees));
           } else if (op?.type === "crop" && op.rect) {
             const x = Math.max(0, Math.floor(op.rect.x));
             const y = Math.max(0, Math.floor(op.rect.y));
@@ -5336,6 +5331,30 @@
         }
         setStatus("已撤銷最近一次影像調整；原有 lane 與 band 座標保留");
       });
+
+      function rotateImage90(degrees) {
+        if (!originalBitmap) return;
+
+        clearTimeout(liveDetectionTimer);
+        clearTimeout(flatFieldPreviewTimer);
+        rotateWorkingImage(degrees);
+        imageOperations.push({ type: "rotate", angleDegrees: degrees });
+
+        guideLine = null;
+        cropRect = null;
+        rotateBtn.disabled = true;
+        cropBtn.disabled = true;
+        clearLaneAnalysis(false);
+        invalidateBandDetectionCache();
+
+        syncVisibleCanvasFromWorking();
+        updateAnalysisControls();
+        setMode("line");
+        setStatus(`已向${degrees < 0 ? "左" : "右"}轉 90°；可接著拉水平基準線`);
+      }
+
+      rotateLeft90Btn.addEventListener("click", () => rotateImage90(-90));
+      rotateRight90Btn.addEventListener("click", () => rotateImage90(90));
 
       lineModeBtn.addEventListener("click", () => {
         guideLine = null;
