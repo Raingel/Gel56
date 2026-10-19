@@ -13,6 +13,7 @@
     if (parts[i][0] === "是" || parts[i][0] === "否") parts.splice(i,1);
   }
   parts.push(...[["Ladder 片段大小輸入未通過檢查","Ladder fragment sizes are invalid.","ラダーの断片サイズが正しくありません。"],["無法從完整專案恢復圖片：","Could not restore image from project: ","プロジェクトの画像を復元できません："],["專案已載入，但重建後影像尺寸為","Project opened, but the restored image size is","プロジェクトを開きましたが、復元画像のサイズが"],["內嵌圖片尺寸為","Embedded image size:","埋め込み画像のサイズ："],["但專案記錄為","but the project records","プロジェクトの記録："],["包含原圖","original image included","元画像を含む"],["門檻以下的候選峰","peaks below threshold","しきい値未満の候補ピーク"],["橫軸對應膠圖 y 座標；點圖新增人工 band。","Horizontal axis is the gel y-position. Click to add a band.","横軸はゲルのy座標です。クリックでバンドを追加します。"],["敏感度 ","sensitivity ","感度 "],["個 ladder 片段"," ladder fragments"," ラダー断片"],["個 band"," bands"," バンド"],["門檻 ","threshold ","しきい値 "],["的半對數模型 R²="," semi-log model R²="," の片対数モデル R²="],["在 y=","at y=","y="],["的 band"," band"," バンド"],["的 band 已移到"," band moved to"," バンドを移動："],["轉 90°；可接著拉水平基準線","90°. You can now draw the guide line.","90°回転しました。次に基準線を引けます。"],["已刪除","Removed ","削除："],["目前為","current","現在"],["不一致","does not match","一致しません"],["不正確","invalid","正しくありません"]]);
+  parts.push(["個。"," items."," 個。"],["例如：","For example: ","例："]);
   const patterns = [
     {
       re: /^「(.+)」不是有效的正數 bp。$/,
