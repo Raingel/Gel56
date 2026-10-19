@@ -17,6 +17,7 @@ Gel56 runs in your browser. No installation or server upload is needed. The inte
 - Estimate fragment sizes from a DNA ladder using semi-log regression or local interpolation.
 - Measure relative band intensity within each lane.
 - Export band data as CSV or TSV, or make an exploratory presence/absence matrix.
+- Build a Dice similarity + UPGMA fingerprint dendrogram from the current matrix or pasted CSV. Export the tree as SVG or Newick.
 - Save a `.gelproj` file with the original image and analysis settings.
 
 ## How to use
@@ -33,5 +34,6 @@ Gel56 runs in your browser. No installation or server upload is needed. The inte
 - Check all detected bands against the gel image, especially weak bands.
 - Relative band intensity is intended for comparisons within a lane, not absolute comparisons across lanes.
 - The presence/absence matrix groups bands by estimated size. Bands in the same size group are not necessarily homologous.
+- UPGMA uses binary band presence/absence (not band intensity), excludes unresolved bands and all-zero samples, and does not estimate bootstrap support. The dendrogram shows fingerprint similarity, not a phylogeny.
 - Keep the original gel images. A `.gelproj` file includes the original image and processing steps.
 - Gel56 is under development. Analysis results should be checked before use in a publication.
