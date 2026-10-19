@@ -56,6 +56,8 @@
       ja: m => `${m[1] === "左" ? "左" : "右"}に90°回転しました。次に基準線を引いてください。`
     }
   ];
+  // UPGMA analysis panel (shared by all three interface languages).
+  entries.push(...[["UPGMA 樹狀圖","UPGMA dendrogram","UPGMA樹状図"],["依據 1/0 band matrix 使用 Dice similarity 與 UPGMA 分群。這是指紋相似性圖，不是親緣演化樹。","Cluster the binary band matrix using Dice similarity and UPGMA. This shows fingerprint similarity, not evolutionary history.","0/1のバンド行列をDice類似度とUPGMAで分類します。進化的な系統樹ではありません。"],["UPGMA · 指紋樹狀圖","UPGMA · Fingerprint dendrogram","UPGMA · フィンガープリント樹状図"],["Dice similarity + UPGMA。只使用 bin 的 0/1；unresolved_bands 不參與計算。這是指紋分群圖，不是親緣演化樹。","Dice similarity + UPGMA. Only binary bin values are used. Unresolved bands are ignored. This is fingerprint clustering, not a phylogenetic tree.","Dice類似度 + UPGMA。binの0/1のみ使用し、サイズ不明のバンドは除外します。進化的な系統樹ではありません。"],["帶入目前的 1/0 matrix","Use current 1/0 matrix","現在の0/1行列を使う"],["產生樹狀圖","Build dendrogram","樹状図を作成"],["下載 SVG","Download SVG","SVGを保存"],["下載 Newick","Download Newick","Newickを保存"],["1/0 matrix（CSV）","Binary matrix (CSV)","0/1行列（CSV）"]]);
   const exact = new Map(entries.map(([zh,en,ja])=>[zh,{en,ja}]));
   const fragments = [...parts].sort((a,b)=>b[0].length-a[0].length);
   const labels = { "zh-TW":"台灣中文", en:"English", ja:"日本語" };
