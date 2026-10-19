@@ -1078,7 +1078,7 @@
 
   <div id="resultPanel" class="analysis-panel result-controls" aria-disabled="true">
     <div class="adjust-title">
-      <span class="step-heading">Step 10 · Band 大小與亮度 <span class="help-tip" tabindex="0" role="note" data-tip="預設採用相鄰兩個 ladder bands 的 log-linear 內插，不使用整個 100–10,000 bp 範圍的一條直線。超出 ladder 兩端則不外插。亮度只適合 lane 內比較。">?</span></span>
+      <span class="step-heading">Step 10 · Band 大小與亮度 <span class="help-tip" tabindex="0" role="note" data-tip="預設使用相鄰兩條 ladder 的 log-linear 內插；PCHIP 可提供平滑、單調的非線性校正。兩種方法都不外插到 ladder 範圍以外。">?</span></span>
       
     </div>
 
@@ -1086,7 +1086,7 @@
       <span>大小計算方法</span>
       <select id="sizeMethodSelect" disabled>
         <option value="local" selected>最近 ladder：上下相鄰片段局部內插</option>
-        <option value="semilog">最近 ladder：全範圍半對數迴歸</option>
+        <option value="pchip">最近 ladder：PCHIP 平滑內插</option>
       </select>
     </label>
 
@@ -2650,11 +2650,10 @@
 
         ladderSizesInput.value =
           savedAnalysis.ladderSizesText || "";
-        // Honor explicitly saved settings; use the new local default otherwise.
+        // Old projects using semilog switch to local; saved PCHIP remains PCHIP.
+        // The existing restore workflow recalculates saved band sizes.
         sizeMethodSelect.value =
-          savedAnalysis.sizeMethod === "semilog"
-            ? "semilog"
-            : "local";
+          savedAnalysis.sizeMethod === "pchip" ? "pchip" : "local";
         bandLabelModeSelect.value = [
           "none",
           "size",
@@ -3982,58 +3981,6 @@
         addManualBand(profileSelectedLane,y);
       });
 
-      function fitLinearRegression(points) {
-        const n = points.length;
-        if (n < 2) return null;
-
-        let sumX = 0;
-        let sumY = 0;
-        let sumXX = 0;
-        let sumXY = 0;
-
-        points.forEach(point => {
-          sumX += point.x;
-          sumY += point.y;
-          sumXX += point.x * point.x;
-          sumXY += point.x * point.y;
-        });
-
-        const denominator =
-          n * sumXX - sumX * sumX;
-
-        if (Math.abs(denominator) < 1e-12) {
-          return null;
-        }
-
-        const slope =
-          (n * sumXY - sumX * sumY) /
-          denominator;
-        const intercept =
-          (sumY - slope * sumX) / n;
-        const meanY = sumY / n;
-
-        let ssTotal = 0;
-        let ssResidual = 0;
-
-        points.forEach(point => {
-          const predicted =
-            intercept + slope * point.x;
-          ssTotal += (point.y - meanY) ** 2;
-          ssResidual += (point.y - predicted) ** 2;
-        });
-
-        const r2 =
-          ssTotal > 0
-            ? 1 - ssResidual / ssTotal
-            : 1;
-
-        return {
-          slope,
-          intercept,
-          r2
-        };
-      }
-
       function getBandsForLane(laneIndex) {
         return bands
           .filter(band => band.laneIndex === laneIndex)
@@ -4069,39 +4016,22 @@
             logBp: Math.log10(sizes[index])
           }));
 
-          const model = fitLinearRegression(
-            markers.map(marker => ({
-              x: marker.y,
-              y: marker.logBp
-            }))
-          );
-
-          if (!model || !Number.isFinite(model.slope)) {
+          // Marker centers must be in strictly increasing migration order.
+          // Bands merged at the same position cannot form separate calibration anchors.
+          if (markers.some((marker, i) =>
+            i > 0 && marker.y - markers[i - 1].y < 1
+          )) {
             warnings.push(
-              `L${lane.index + 1} 的半對數模型無法配適。`
+              `L${lane.index + 1} 的 ladder bands 太接近或重疊；` +
+              "請先確認 band 點與片段大小對應。"
             );
-          } else {
-            if (model.slope >= 0) {
-              warnings.push(
-                `L${lane.index + 1} 的模型斜率不是負值；` +
-                "請確認 ladder 大小順序及 band 對應。"
-              );
-            }
-
-            // Global R² describes only the global semi-log method.
-            // It is not a fit diagnostic for local interpolation.
-            if (sizeMethodSelect.value === "semilog" && model.r2 < 0.98) {
-              warnings.push(
-                `L${lane.index + 1} 的半對數模型 R²=${model.r2.toFixed(4)}，` +
-                "配適可能不佳。"
-              );
-            }
+            return;
           }
 
           calibrations.push({
             lane,
             markers,
-            model,
+            pchipSlopes: computePchipSlopes(markers),
             minY: markers[0].y,
             maxY: markers.at(-1).y
           });
@@ -4231,34 +4161,80 @@
         }
       }
 
-      function estimateBySemilog(
-        band,
-        calibration
-      ) {
-        const model = calibration.model;
+      // Monotone piecewise cubic Hermite interpolation (PCHIP).
+      // x is the migrated pixel coordinate, y is log10(fragment size).
+      function computePchipSlopes(markers) {
+        const n = markers.length;
+        if (n < 2) return null;
+        const h = [], delta = [];
+        for (let i = 0; i < n - 1; i++) {
+          const width = markers[i + 1].y - markers[i].y;
+          if (!Number.isFinite(width) || width <= 0) return null;
+          h.push(width);
+          delta.push((markers[i + 1].logBp - markers[i].logBp) / width);
+        }
+        if (n === 2) return [delta[0], delta[0]];
 
-        if (
-          !model ||
-          !Number.isFinite(model.slope) ||
-          model.slope >= 0
-        ) {
-          return null;
+        const slopes = new Array(n).fill(0);
+        // Weighted harmonic mean avoids overshoot on monotonic ladder data.
+        for (let i = 1; i < n - 1; i++) {
+          if (delta[i - 1] === 0 || delta[i] === 0 ||
+              Math.sign(delta[i - 1]) !== Math.sign(delta[i])) {
+            slopes[i] = 0;
+          } else {
+            const w1 = 2 * h[i] + h[i - 1];
+            const w2 = h[i] + 2 * h[i - 1];
+            slopes[i] = (w1 + w2) /
+              (w1 / delta[i - 1] + w2 / delta[i]);
+          }
         }
 
-        const logBp =
-          model.intercept + model.slope * band.y;
-        const bp = 10 ** logBp;
+        function endpointSlope(h0, h1, d0, d1) {
+          let value = ((2 * h0 + h1) * d0 - h0 * d1) / (h0 + h1);
+          if (Math.sign(value) !== Math.sign(d0)) return 0;
+          if (Math.sign(d0) !== Math.sign(d1) &&
+              Math.abs(value) > 3 * Math.abs(d0)) {
+            value = 3 * d0;
+          }
+          return value;
+        }
+        slopes[0] = endpointSlope(h[0], h[1], delta[0], delta[1]);
+        slopes[n - 1] = endpointSlope(
+          h[n - 2], h[n - 3], delta[n - 2], delta[n - 3]
+        );
+        return slopes.every(Number.isFinite) ? slopes : null;
+      }
 
-        if (!Number.isFinite(bp) || bp <= 0) {
-          return null;
+      function estimateByPchip(band, calibration) {
+        const markers = calibration.markers;
+        const slopes = calibration.pchipSlopes;
+        if (!slopes || band.y < calibration.minY ||
+            band.y > calibration.maxY) return null;
+
+        for (const marker of markers) {
+          if (Math.abs(marker.y - band.y) < 0.5)
+            return { bp: marker.bp, extrapolated: false };
         }
 
-        return {
-          bp,
-          extrapolated:
-            band.y < calibration.minY ||
-            band.y > calibration.maxY
-        };
+        for (let i = 0; i < markers.length - 1; i++) {
+          const upper = markers[i];
+          const lower = markers[i + 1];
+          if (band.y < upper.y || band.y > lower.y) continue;
+          const h = lower.y - upper.y;
+          const t = (band.y - upper.y) / h;
+          const t2 = t * t, t3 = t2 * t;
+          const logBp =
+            (2 * t3 - 3 * t2 + 1) * upper.logBp +
+            (t3 - 2 * t2 + t) * h * slopes[i] +
+            (-2 * t3 + 3 * t2) * lower.logBp +
+            (t3 - t2) * h * slopes[i + 1];
+          // Keep the result inside its two known marker sizes.
+          const bounded = Math.max(lower.logBp, Math.min(upper.logBp, logBp));
+          const bp = 10 ** bounded;
+          return Number.isFinite(bp) && bp > 0
+            ? { bp, extrapolated: false } : null;
+        }
+        return null;
       }
 
       function estimateByLocalInterpolation(
@@ -4380,7 +4356,7 @@
 
         let estimatedCount = 0;
         let unavailableCount = 0;
-        let extrapolatedCount = 0;
+        let outsideCount = 0;
         const method = sizeMethodSelect.value;
 
         bands.forEach(band => {
@@ -4406,18 +4382,15 @@
           }
 
           const estimate =
-            method === "local"
-              ? estimateByLocalInterpolation(
-                  band,
-                  calibration
-                )
-              : estimateBySemilog(
-                  band,
-                  calibration
-                );
+            method === "pchip"
+              ? estimateByPchip(band, calibration)
+              : estimateByLocalInterpolation(band, calibration);
 
           if (!estimate) {
             unavailableCount++;
+            if (band.y < calibration.minY || band.y > calibration.maxY) {
+              outsideCount++;
+            }
             return;
           }
 
@@ -4428,26 +4401,17 @@
             calibration.lane.index;
           estimatedCount++;
 
-          if (band.extrapolated) {
-            extrapolatedCount++;
-          }
         });
 
-        if (method === "local" && unavailableCount) {
+        if (outsideCount) {
           warnings.push(
-            `${unavailableCount} 個 band 位於最近 ladder 的片段範圍之外，` +
-            "局部內插不進行外插，因此未提供大小。"
-          );
-        } else if (unavailableCount) {
-          warnings.push(
-            `${unavailableCount} 個 band 因 ladder 模型無效而無法估算大小。`
+            `${outsideCount} 個 band 超出最近 ladder 的片段範圍；` +
+            "局部內插及 PCHIP 都不外插，因此未提供大小。"
           );
         }
-
-        if (extrapolatedCount) {
+        if (unavailableCount > outsideCount) {
           warnings.push(
-            `${extrapolatedCount} 個 band 超出 ladder 的最高或最低片段範圍，` +
-            "半對數法使用了外插，可信度較低。"
+            `${unavailableCount - outsideCount} 個 band 無法由 ladder 估算大小。`
           );
         }
 
