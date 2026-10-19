@@ -20,7 +20,7 @@
         out.push(field.trim()); field = "";
       } else field += c;
     }
-    if (quoted) throw Error("CSV has an unclosed quotation mark.");
+    if (quoted) throw Error(tr("CSV 引號沒有結束。","CSV has an unclosed quotation mark.","CSVの引用符が閉じられていません。"));
     out.push(field.trim());
     return out;
   }
@@ -28,35 +28,35 @@
   function parseMatrix(csv) {
     const rows = String(csv || "").replace(/^\uFEFF/, "").trim().split(/\r?\n/)
       .map(s => s.trim()).filter(Boolean).map(csvFields);
-    if (rows.length < 3) throw Error("At least two sample rows are required.");
+    if (rows.length < 3) throw Error(tr("至少需要兩筆樣本。","At least two sample rows are required.","試料が2件以上必要です。"));
     const head = rows.shift();
-    if (head[0].toLowerCase() !== "lane") throw Error("The first CSV column must be lane.");
+    if (head[0].toLowerCase() !== "lane") throw Error(tr("CSV 第一欄必須是 lane。","The first CSV column must be lane.","CSVの1列目は lane にしてください。"));
     const unresolvedIndex = head.findIndex(x => x.toLowerCase() === "unresolved_bands");
     const binIndices = head.map((x, i) => i).filter(i => i > 0 && i !== unresolvedIndex);
-    if (binIndices.length === 0) throw Error("No binary band columns were found.");
-    if (rows.length > MAX_SAMPLES) throw Error("Too many samples (maximum 120).");
+    if (binIndices.length === 0) throw Error(tr("找不到 0/1 band 欄位。","No binary band columns were found.","0/1のバンド列がありません。"));
+    if (rows.length > MAX_SAMPLES) throw Error(tr("樣本太多（最多 120 筆）。","Too many samples (maximum 120).","試料数が多すぎます（最大120件）。"));
     const names = new Set();
     const included = [], empty = [], unresolved = [];
     rows.forEach((row, i) => {
-      if (row.length !== head.length) throw Error("Column count differs on row " + (i+2) + ".");
+      if (row.length !== head.length) throw Error(tr("第 ","Column count differs on row ","行目の列数が一致しません：") + (i+2) + ".");
       const name = row[0].trim();
-      if (!name || names.has(name)) throw Error("Missing or duplicate sample name: " + (name || "row " + (i+2)));
+      if (!name || names.has(name)) throw Error(tr("樣本名稱空白或重複：","Missing or duplicate sample name: ","試料名が空欄、または重複しています：") + (name || "row " + (i+2)));
       names.add(name);
       const vector = binIndices.map(j => {
-        if (row[j] !== "0" && row[j] !== "1") throw Error("Invalid band value in " + name + ": " + row[j]);
+        if (row[j] !== "0" && row[j] !== "1") throw Error(tr("有無效的 band 值：","Invalid band value in ","無効なバンド値：") + name + ": " + row[j]);
         return Number(row[j]);
       });
       const count = vector.reduce((a,b) => a+b, 0);
       if (unresolvedIndex >= 0) {
         const raw = row[unresolvedIndex];
-        if (!/^\d+$/.test(raw)) throw Error("Invalid unresolved_bands for " + name + ".");
+        if (!/^\d+$/.test(raw)) throw Error(tr("unresolved_bands 不是整數：","Invalid unresolved_bands for ","unresolved_bands が整数ではありません：") + name + ".");
         if (+raw > 0) unresolved.push(name + " (" + raw + ")");
       }
       // All-zero rows do not provide meaningful shared-band information.
       if (!count) empty.push(name);
       else included.push({name, vector, count, order:i});
     });
-    if (included.length < 2) throw Error("At least two samples with detected bands are required.");
+    if (included.length < 2) throw Error(tr("至少需要兩筆有 band 的樣本；全為 0 的樣本不參與分群。","At least two samples with detected bands are required.","バンドのある試料が2件以上必要です。全て0の試料は除外します。"));
     return {samples:included, columns:binIndices.length, empty, unresolved};
   }
 
@@ -110,7 +110,7 @@
       width:width,height:height,role:"img","aria-label":"UPGMA dendrogram (Dice distance)"});
     svg.appendChild(makeSvgNode("rect",{width,height,fill:"#fff"}));
     svg.appendChild(makeSvgNode("text",{x:30,y:27,fill:"#1b2730","font-size":17,"font-family":"Arial,sans-serif","font-weight":"bold"},
-      "UPGMA · Dice distance (1 - similarity)"));
+      tr("UPGMA · Dice 距離（1 − similarity）","UPGMA · Dice distance (1 - similarity)","UPGMA · Dice距離（1 − 類似度）")));
     const xOf=n=>right-(2*n.height)*range;
     let nextY=top;
     function layout(n) {
@@ -142,7 +142,7 @@
     }
     branches(root);
     svg.appendChild(makeSvgNode("text",{x:30,y:height-19,fill:"#707c85","font-size":12,
-      "font-family":"Arial,sans-serif"},"Exploratory fingerprint clustering · not a phylogenetic tree · no bootstrap"));
+      "font-family":"Arial,sans-serif"},tr("探索性指紋分群 · 非親緣演化樹 · 無 bootstrap","Exploratory fingerprint clustering · not a phylogenetic tree · no bootstrap","探索的フィンガープリント分類 · 系統樹ではありません · bootstrapなし")));
     return svg;
   }
 
@@ -167,7 +167,7 @@
   modal.hidden=true;
   modal.innerHTML=[
     '<section class="export-dialog" role="dialog" aria-modal="true" aria-labelledby="dendroTitle" style="width:min(1140px,96vw)">',
-    '<div class="export-dialog-header"><h2 id="dendroTitle" class="export-dialog-title">UPGMA · Fingerprint dendrogram</h2>',
+    '<div class="export-dialog-header"><h2 id="dendroTitle" class="export-dialog-title">UPGMA · 指紋樹狀圖</h2>',
     '<button type="button" id="dendroClose">關閉</button></div>',
     '<div class="export-dialog-body" style="display:flex;flex-direction:column;gap:10px">',
     '<div class="panel-note">Dice similarity + UPGMA。只使用 bin 的 0/1；unresolved_bands 不參與計算。這是指紋分群圖，不是親緣演化樹。</div>',
@@ -175,7 +175,7 @@
     '<button type="button" id="dendroRun" class="primary">產生樹狀圖</button>',
     '<button type="button" id="dendroSVG" disabled>下載 SVG</button>',
     '<button type="button" id="dendroNewick" disabled>下載 Newick</button></div>',
-    '<label class="field-control" for="dendroCSV"><span>Binary matrix (CSV)</span>',
+    '<label class="field-control" for="dendroCSV"><span>1/0 matrix（CSV）</span>',
     '<textarea id="dendroCSV" spellcheck="false" rows="4" style="width:100%;min-height:100px;max-height:210px;font-family:monospace"',
     ' placeholder="lane,unresolved_bands,bin1_1000bp,bin2_500bp&#10;L1,0,1,0&#10;L2,0,1,1"></textarea></label>',
     '<div id="dendroStatus" class="panel-note" role="status" aria-live="polite"></div>',
@@ -225,6 +225,10 @@
   function close(){modal.hidden=true;}
   function open(){modal.hidden=false;if(!textarea.value.trim())loadCurrent();$("dendroClose").focus();}
   button.addEventListener("click",open);
+  const languageSelect=$("languageSelect");
+  if(languageSelect) languageSelect.addEventListener("change",()=>{
+    if(!modal.hidden && currentSVG)run();
+  });
   $("dendroClose").addEventListener("click",close);
   $("dendroCloseBottom").addEventListener("click",close);
   $("dendroCurrent").addEventListener("click",loadCurrent);
