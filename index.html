@@ -238,10 +238,18 @@
       background: #56431d;
     }
 
-    .lane-check input {
+    .lane-check input[type="checkbox"] {
       margin: 0;
       accent-color: var(--crop);
     }
+    .lane-check .lane-id {font-size:12px;color:var(--muted);font-weight:600;}
+    .lane-check .sample-name {
+      width: 110px; max-width: 160px; flex:1;
+      border:1px solid var(--border); background:var(--bg); color:var(--text);
+      border-radius:4px; padding:5px 6px; font:inherit; user-select:text;
+    }
+    .lane-check .sample-name:focus {outline:2px solid var(--accent); outline-offset:1px;}
+
 
     .panel-note {
       color: var(--muted);
@@ -1005,6 +1013,7 @@
       <span class="step-heading">Step 6 · Ladder lanes <span class="help-tip" tabindex="0" role="note" data-tip="勾選含有 DNA ladder 的 lanes。">?</span></span>
       
     </div>
+    <div class="panel-note">左邊選 DNA ladder，右邊可填每條 lane 的樣本名稱。</div>
     <div id="ladderChoices" class="ladder-choices">
       <span class="panel-note">確認 lanes 後可選擇</span>
     </div>
@@ -1343,6 +1352,7 @@
 
       let laneRange = null;
       let lanes = [];
+      let laneNameDrafts = [];
       let lanesConfirmed = false;
       let laneCountCommitted = 24;
 
@@ -2050,6 +2060,11 @@
         }));
       }
 
+      function getLaneName(lane) {
+        const entered = typeof lane?.sampleName === "string" ? lane.sampleName.trim() : "";
+        return entered || `L${lane.index + 1}`;
+      }
+
       function rebuildLadderChoices() {
         ladderChoices.replaceChildren();
 
@@ -2062,8 +2077,14 @@
         }
 
         lanes.forEach((lane, index) => {
+          const row = document.createElement("div");
+          row.className = "lane-check";
+
           const label = document.createElement("label");
-          label.className = "lane-check";
+          label.style.display = "inline-flex";
+          label.style.alignItems = "center";
+          label.style.gap = "5px";
+          label.style.cursor = "pointer";
 
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
@@ -2071,21 +2092,40 @@
           checkbox.dataset.laneIndex = String(index);
 
           const text = document.createElement("span");
+          text.className = "lane-id";
           text.textContent = `L${index + 1}`;
 
+          const name = document.createElement("input");
+          name.type = "text";
+          name.className = "sample-name";
+          name.maxLength = 64;
+          name.value = getLaneName(lane);
+          name.setAttribute("aria-label", `L${index+1} 樣本名稱`);
+          name.title = "樣本名稱（儲存於 .gelproj 並用於圖表及匯出）";
+          name.addEventListener("change", () => {
+            const candidate = name.value.trim() || `L${index + 1}`;
+            const duplicate = lanes.some((other,j) =>
+              j !== index && getLaneName(other).toLocaleLowerCase() === candidate.toLocaleLowerCase());
+            if (duplicate) {
+              alert("樣本名稱不能重複。請為每條 lane 使用不同的名稱。");
+              name.value = getLaneName(lane);
+              return;
+            }
+            lane.sampleName = candidate;
+            name.value = candidate;
+            syncProfileLaneOptions();
+          });
           checkbox.addEventListener("change", () => {
             lane.isLadder = checkbox.checked;
             clearBandMetrics();
             updateAnalysisControls();
             drawOverlay();
-
-            if (hasCalculatedResults) {
-              scheduleResultRecalculation();
-            }
+            if (hasCalculatedResults) scheduleResultRecalculation();
           });
 
           label.append(checkbox, text);
-          ladderChoices.appendChild(label);
+          row.append(label, name);
+          ladderChoices.appendChild(row);
         });
       }
 
@@ -2103,6 +2143,7 @@
       }
 
       function clearLaneAnalysis(redraw = true) {
+        laneNameDrafts = [];
         laneRange = null;
         lanes = [];
         lanesConfirmed = false;
@@ -2581,6 +2622,7 @@
         lanes = Array.isArray(savedAnalysis.lanes)
           ? deepClone(savedAnalysis.lanes)
           : [];
+        laneNameDrafts = [];
         bands = Array.isArray(savedAnalysis.bands)
           ? deepClone(savedAnalysis.bands)
           : [];
@@ -3837,11 +3879,11 @@
           if (!lanes.length) {
             profileLaneSelect.add(new Option("請先確認 lanes", "0"));
           } else lanes.forEach((lane, i) => {
-            profileLaneSelect.add(new Option(`L${i+1}${lane.isLadder ? " (Ladder)" : ""}`, String(i)));
+            profileLaneSelect.add(new Option(`L${i+1} · ${getLaneName(lane)}${lane.isLadder ? " (Ladder)" : ""}`, String(i)));
           });
         } else if (lanes.length) {
           lanes.forEach((lane,i) => {
-            const name = `L${i+1}${lane.isLadder ? " (Ladder)" : ""}`;
+            const name = `L${i+1} · ${getLaneName(lane)}${lane.isLadder ? " (Ladder)" : ""}`;
             if (profileLaneSelect.options[i].text !== name)
               profileLaneSelect.options[i].text = name;
           });
@@ -4562,7 +4604,7 @@
             })
             .join(",");
 
-          const laneName = `L${lane.index + 1}`;
+          const laneName = getLaneName(lane);
           const prefix = includeLaneNameInput.checked
             ? `${laneName}\t`
             : "";
@@ -4596,7 +4638,7 @@
 
           laneBands.forEach((band, index) => {
             rows.push([
-              `L${lane.index + 1}`,
+              getLaneName(lane),
               lane.isLadder ? "ladder" : "sample",
               index + 1,
               Number.isFinite(band.bp)
@@ -4672,7 +4714,7 @@
             tally[i] = bin.members.filter(m=>m.laneIndex===s.lane.index).length;
             if (tally[i] > 1) collisions += tally[i] - 1;
           });
-          rows.push([`L${s.lane.index+1}`,s.unresolved,...Array.from(tally,n=>n>0?1:0)]);
+          rows.push([getLaneName(s.lane),s.unresolved,...Array.from(tally,n=>n>0?1:0)]);
         });
         return {text:rows.map(row=>row.map(escapeCsv).join(",")).join("\n"),
           bins:bins.length, unresolved:samples.reduce((a,s)=>a+s.unresolved,0), collisions};
@@ -5559,6 +5601,7 @@
       );
 
       laneRangeBtn.addEventListener("click", () => {
+        laneNameDrafts = lanes.map(getLaneName);
         laneRange = null;
         lanes = [];
         lanesConfirmed = false;
@@ -5578,6 +5621,8 @@
           commitLaneCount();
 
           lanes = getLaneGeometry();
+          lanes.forEach((lane,i) => { if (laneNameDrafts[i]) lane.sampleName = laneNameDrafts[i]; });
+          laneNameDrafts = [];
           lanesConfirmed = true;
           clearBandData(false);
           hasCalculatedResults = false;
