@@ -1010,7 +1010,7 @@
 
   <div id="ladderPanel" class="analysis-panel ladder-panel" aria-disabled="true">
     <div class="adjust-title">
-      <span class="step-heading">Step 6 · Ladder lanes <span class="help-tip" tabindex="0" role="note" data-tip="勾選含有 DNA ladder 的 lanes。">?</span></span>
+      <span class="step-heading">Step 6 · Ladder / 樣本名稱 <span class="help-tip" tabindex="0" role="note" data-tip="勾選 DNA ladder；右側可修改各 lane 的樣本名稱。名稱會儲存於專案與匯出檔。">?</span></span>
       
     </div>
     <div class="panel-note">左邊選 DNA ladder，右邊可填每條 lane 的樣本名稱。</div>
@@ -1117,7 +1117,7 @@
 
     <button id="calculateResultsBtn" class="primary" disabled>計算大小與亮度</button>
     <button id="openExportBtn" disabled>匯出結果</button>
-    <div class="tool-action"><button id="openDendrogramBtn" type="button">UPGMA 樹狀圖</button><span class="help-tip" tabindex="0" role="note" data-tip="依據 1/0 band matrix 使用 Dice similarity 與 UPGMA 分群。這是指紋相似性圖，不是親緣演化樹。">?</span></div>
+    <div class="tool-action"><button id="openDendrogramBtn" type="button">指紋分群圖表</button><span class="help-tip" tabindex="0" role="note" data-tip="由同一份 1/0 band matrix 製作 UPGMA、Dice heatmap 及 PCoA。這些圖呈現指紋相似度，不是親緣演化樹。">?</span></div>
 
     <div id="analysisWarnings" class="warning-panel" hidden aria-live="polite"></div>
   </div>
@@ -4618,6 +4618,7 @@
       function buildLongTableExport(delimiter) {
         const rows = [[
           "lane",
+          "sample_name",
           "lane_type",
           "band_order",
           "size_bp",
@@ -4638,6 +4639,7 @@
 
           laneBands.forEach((band, index) => {
             rows.push([
+              `L${lane.index + 1}`,
               getLaneName(lane),
               lane.isLadder ? "ladder" : "sample",
               index + 1,
@@ -5620,8 +5622,9 @@
 
           commitLaneCount();
 
+          const preservedNames = laneNameDrafts.length ? laneNameDrafts : lanes.map(getLaneName);
           lanes = getLaneGeometry();
-          lanes.forEach((lane,i) => { if (laneNameDrafts[i]) lane.sampleName = laneNameDrafts[i]; });
+          lanes.forEach((lane,i) => { if (preservedNames[i]) lane.sampleName = preservedNames[i]; });
           laneNameDrafts = [];
           lanesConfirmed = true;
           clearBandData(false);
