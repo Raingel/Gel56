@@ -146,6 +146,180 @@
     return svg;
   }
 
+
+  // All visualizations use the same Dice distance matrix.
+  function distanceMatrix(samples) {
+    return samples.map((a,i)=>samples.map((b,j)=>i===j?0:diceDistance(a,b)));
+  }
+
+  function leafOrder(root) {
+    return root.children ? root.children.flatMap(leafOrder) : [root.name];
+  }
+
+  function appendTitle(node, value) {
+    node.appendChild(makeSvgNode("title",{},value));
+    return node;
+  }
+
+  function drawHeatmap(matrix, root) {
+    const byName=new Map(matrix.samples.map((s,i)=>[s.name,i]));
+    const order=leafOrder(root).map(name=>byName.get(name));
+    const dist=distanceMatrix(matrix.samples), n=order.length;
+    const cell=n<=24?34:n<=55?24:18;
+    const left=205,top=185,width=left+n*cell+85,height=top+n*cell+77;
+    const svg=makeSvgNode("svg",{xmlns:NS,viewBox:"0 0 "+width+" "+height,width,height,
+      role:"img","aria-label":"Pairwise Dice similarity heatmap"});
+    svg.appendChild(makeSvgNode("rect",{width,height,fill:"#fff"}));
+    svg.appendChild(makeSvgNode("text",{x:18,y:30,fill:"#23313d","font-size":18,
+      "font-family":"Arial,sans-serif","font-weight":"bold"},
+      tr("兩兩 Dice similarity (%)","Pairwise Dice similarity (%)","ペアごとのDice類似度 (%)")));
+    svg.appendChild(makeSvgNode("text",{x:18,y:51,fill:"#536575","font-size":12,"font-family":"Arial,sans-serif"},
+      tr("UPGMA 葉節點順序；顏色越深表示越相似",
+         "UPGMA leaf order; darker cells indicate greater similarity",
+         "UPGMAの順序；濃い色ほど類似度が高い")));
+    const short=name=>name.length>20?name.slice(0,19)+"…":name;
+    for(let i=0;i<n;i++){
+      const name=matrix.samples[order[i]].name;
+      const ry=top+i*cell+cell/2;
+      const label=makeSvgNode("text",{x:left-9,y:ry+4,fill:"#26343f",
+        "font-size":n>55?11:12,"font-family":"Arial,sans-serif","text-anchor":"end"},short(name));
+      svg.appendChild(appendTitle(label,name));
+      const col=makeSvgNode("text",{x:left+i*cell+cell/2,y:top-12,fill:"#26343f",
+        "font-size":n>55?10:12,"font-family":"Arial,sans-serif",
+        transform:"rotate(-60 "+(left+i*cell+cell/2)+" "+(top-12)+")","text-anchor":"start"},short(name));
+      svg.appendChild(appendTitle(col,name));
+      for(let j=0;j<n;j++){
+        const similarity=1-dist[order[i]][order[j]];
+        const level=Math.max(0,Math.min(1,similarity));
+        const rr=Math.round(245-(245-32)*level),gg=Math.round(249-(249-105)*level),bb=Math.round(253-(253-152)*level);
+        const rect=makeSvgNode("rect",{x:left+j*cell,y:top+i*cell,width:cell,height:cell,
+          fill:"rgb("+rr+","+gg+","+bb+")",stroke:"#d5e1e8","stroke-width":0.6});
+        if(n<=55) appendTitle(rect,name+" / "+matrix.samples[order[j]].name+": "+(100*level).toFixed(1)+"%");
+        svg.appendChild(rect);
+        if(n<=22) svg.appendChild(makeSvgNode("text",{x:left+j*cell+cell/2,y:ry+4,
+          fill:level>0.65?"#fff":"#20333d","font-size":10,"font-family":"Arial,sans-serif",
+          "text-anchor":"middle"},Math.round(100*level)));
+      }
+    }
+    const lx=left,ly=top+n*cell+32;
+    for(let i=0;i<=20;i++){
+      const level=i/20,rr=Math.round(245-213*level),gg=Math.round(249-144*level),bb=Math.round(253-101*level);
+      svg.appendChild(makeSvgNode("rect",{x:lx+i*12,y:ly,width:12,height:12,fill:"rgb("+rr+","+gg+","+bb+")"}));
+    }
+    for(const [x,t] of [[lx,"0%"],[lx+120,"50%"],[lx+240,"100%"]])
+      svg.appendChild(makeSvgNode("text",{x,y:ly+27,fill:"#344451","font-size":11,
+        "font-family":"Arial,sans-serif","text-anchor":"middle"},t));
+    return svg;
+  }
+
+  // Classical PCoA: double-center squared distances and diagonalize B.
+  // Dice distance is not necessarily Euclidean, so negative eigenvalues are reported.
+  function classicalPCoA(matrix) {
+    const D=distanceMatrix(matrix.samples),n=D.length;
+    if(n<3)throw Error(tr("二維 PCoA 至少需要三筆有 band 的樣本。",
+      "2D PCoA needs at least three samples with bands.",
+      "2次元PCoAにはバンドのある試料が3件以上必要です。"));
+    const sq=D.map(row=>row.map(v=>v*v));
+    const mean=sq.map(row=>row.reduce((a,b)=>a+b,0)/n);
+    const grand=mean.reduce((a,b)=>a+b,0)/n;
+    const A=sq.map((row,i)=>row.map((v,j)=>-0.5*(v-mean[i]-mean[j]+grand)));
+    const V=Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i===j?1:0));
+    const tolerance=1e-12;
+    let converged=false;
+    for(let sweep=0;sweep<80;sweep++){
+      let maxOff=0,scale=0;
+      for(let p=0;p<n;p++) {
+        scale=Math.max(scale,Math.abs(A[p][p]));
+        for(let q=p+1;q<n;q++)maxOff=Math.max(maxOff,Math.abs(A[p][q]));
+      }
+      if(maxOff<=tolerance*Math.max(1,scale)){converged=true;break;}
+      for(let p=0;p<n-1;p++) for(let q=p+1;q<n;q++){
+        const apq=A[p][q];
+        if(Math.abs(apq)<tolerance*Math.max(1,scale)*0.1)continue;
+        const tau=(A[q][q]-A[p][p])/(2*apq);
+        const t=(tau<0?-1:1)/(Math.abs(tau)+Math.sqrt(1+tau*tau));
+        const c=1/Math.sqrt(1+t*t),ss=t*c;
+        const app=A[p][p],aqq=A[q][q];
+        A[p][p]=app-t*apq;
+        A[q][q]=aqq+t*apq;
+        A[p][q]=A[q][p]=0;
+        for(let k=0;k<n;k++){
+          if(k!==p&&k!==q){
+            const akp=A[k][p],akq=A[k][q];
+            A[k][p]=A[p][k]=c*akp-ss*akq;
+            A[k][q]=A[q][k]=ss*akp+c*akq;
+          }
+          const vkp=V[k][p],vkq=V[k][q];
+          V[k][p]=c*vkp-ss*vkq;V[k][q]=ss*vkp+c*vkq;
+        }
+      }
+    }
+    const eigen=Array.from({length:n},(_,i)=>({value:A[i][i],index:i}))
+      .sort((a,b)=>b.value-a.value);
+    const positive=eigen.filter(e=>e.value>1e-9);
+    if(!positive.length)throw Error("No positive PCoA eigenvalues.");
+    const positiveSum=positive.reduce((a,e)=>a+e.value,0);
+    const negativeSum=eigen.filter(e=>e.value < -1e-9).reduce((a,e)=>a-Math.min(0,e.value),0);
+    // Eigenvector signs are arbitrary; coordinate distances are unaffected.
+    const coordinate=(i,k)=>positive[k]?
+      V[i][positive[k].index]*Math.sqrt(positive[k].value):0;
+    return {points:matrix.samples.map((s,i)=>({name:s.name,x:coordinate(i,0),y:coordinate(i,1)})),
+      explained:[(positive[0]?.value||0)/positiveSum,(positive[1]?.value||0)/positiveSum],
+      negativeFraction:negativeSum/Math.max(positiveSum,1e-20),
+      positiveAxes:positive.length,converged};
+  }
+
+  function drawPCoA(matrix) {
+    const result=classicalPCoA(matrix);
+    const width=1020,height=650,left=95,right=790,top=95,bottom=555;
+    const xs=result.points.map(p=>p.x),ys=result.points.map(p=>p.y);
+    const xmin=Math.min(0,...xs),xmax=Math.max(0,...xs),ymin=Math.min(0,...ys),ymax=Math.max(0,...ys);
+    const xpad=Math.max((xmax-xmin)*0.15,0.05),ypad=Math.max((ymax-ymin)*0.15,0.05);
+    const x0=xmin-xpad,x1=xmax+xpad,y0=ymin-ypad,y1=ymax+ypad;
+    const sx=x=>left+(x-x0)/(x1-x0)*(right-left);
+    const sy=y=>bottom-(y-y0)/(y1-y0)*(bottom-top);
+    const svg=makeSvgNode("svg",{xmlns:NS,viewBox:"0 0 "+width+" "+height,width,height,
+      role:"img","aria-label":"Principal coordinates analysis (Dice distance)"});
+    svg.appendChild(makeSvgNode("rect",{width,height,fill:"#fff"}));
+    svg.appendChild(makeSvgNode("text",{x:27,y:30,fill:"#263743","font-size":18,
+      "font-family":"Arial,sans-serif","font-weight":"bold"},
+      tr("PCoA · Dice 距離","PCoA · Dice distance","PCoA · Dice距離")));
+    const pcName=k=>"PCo"+(k+1)+" ("+(100*result.explained[k]).toFixed(1)+"%)";
+    for(let t=0;t<=5;t++){
+      const xt=left+(right-left)*t/5, yt=top+(bottom-top)*t/5;
+      svg.appendChild(makeSvgNode("line",{x1:xt,y1:top,x2:xt,y2:bottom,stroke:"#e7ebef"}));
+      svg.appendChild(makeSvgNode("line",{x1:left,y1:yt,x2:right,y2:yt,stroke:"#e7ebef"}));
+      svg.appendChild(makeSvgNode("text",{x:xt,y:bottom+19,"text-anchor":"middle",
+        fill:"#556776","font-size":11,"font-family":"Arial,sans-serif"},(x0+(x1-x0)*t/5).toFixed(2)));
+      svg.appendChild(makeSvgNode("text",{x:left-12,y:yt+4,"text-anchor":"end",
+        fill:"#556776","font-size":11,"font-family":"Arial,sans-serif"},(y1-(y1-y0)*t/5).toFixed(2)));
+    }
+    for(const [x1,y1,x2,y2] of [[sx(0),top,sx(0),bottom],[left,sy(0),right,sy(0)]])
+      svg.appendChild(makeSvgNode("line",{x1,y1,x2,y2,stroke:"#a4b4c0","stroke-dasharray":"6 5"}));
+    const labelAll=result.points.length<=35;
+    result.points.forEach((p,i)=>{
+      const cx=sx(p.x),cy=sy(p.y);
+      const circle=makeSvgNode("circle",{cx,cy,r:5.5,fill:"#267ba9",stroke:"#fff","stroke-width":1.5});
+      svg.appendChild(appendTitle(circle,p.name+": ("+p.x.toFixed(3)+", "+p.y.toFixed(3)+")"));
+      if(labelAll){
+        const lab=makeSvgNode("text",{x:cx+8,y:cy-6,fill:"#243b4a",
+          "font-family":"Arial,sans-serif","font-size":12},p.name.length>23?p.name.slice(0,22)+"…":p.name);
+        svg.appendChild(appendTitle(lab,p.name));
+      }
+    });
+    svg.appendChild(makeSvgNode("text",{x:(left+right)/2,y:height-56,
+      fill:"#243b4a","font-family":"Arial,sans-serif","font-size":14,"text-anchor":"middle"},pcName(0)));
+    svg.appendChild(makeSvgNode("text",{x:32,y:(top+bottom)/2,
+      fill:"#243b4a","font-family":"Arial,sans-serif","font-size":14,
+      transform:"rotate(-90 32 "+((top+bottom)/2)+")","text-anchor":"middle"},pcName(1)));
+    svg.appendChild(makeSvgNode("text",{x:27,y:height-17,fill:"#61727d",
+      "font-family":"Arial,sans-serif","font-size":12},
+      tr("解釋比例以正特徵值總和計算；圖形不一定保留所有原始距離。",
+         "Percentages use positive eigenvalues; 2D may not preserve all pairwise distances.",
+         "寄与率は正の固有値を基準に計算。2次元では元の距離を完全に再現できません。")));
+    return {svg,result};
+  }
+
   function encodeNewickLabel(name){
     return "'" + String(name).replace(/'/g,"''") + "'";
   }
