@@ -5771,7 +5771,14 @@
         if (!resultsValid || !lanesConfirmed) {
           throw Error("請先完成「計算大小與亮度」，再帶入目前的 1/0 matrix。");
         }
-        return buildBinaryMatrixExport().text;
+        // DNA ladder lanes are calibration references, not field isolates.
+        const includeLadders = includeLadderLanesInput.checked;
+        includeLadderLanesInput.checked = false;
+        try {
+          return buildBinaryMatrixExport().text;
+        } finally {
+          includeLadderLanesInput.checked = includeLadders;
+        }
       };
 
       updateLadderSizeSummary();
