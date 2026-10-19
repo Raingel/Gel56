@@ -38,7 +38,7 @@
     const names = new Set();
     const included = [], empty = [], unresolved = [];
     rows.forEach((row, i) => {
-      if (row.length !== head.length) throw Error(tr("第 ","Column count differs on row ","行目の列数が一致しません：") + (i+2) + ".");
+      if (row.length !== head.length) throw Error(tr("第" + (i+2) + "列欄位數不符：預期" + head.length + "欄，實際" + row.length + "欄。", "CSV row " + (i+2) + ": expected " + head.length + " columns, found " + row.length + ".", "CSVの" + (i+2) + "行目：列数は" + head.length + "のはずですが、実際は" + row.length + "です。"));
       const name = row[0].trim();
       if (!name || names.has(name)) throw Error(tr("樣本名稱空白或重複：","Missing or duplicate sample name: ","試料名が空欄、または重複しています：") + (name || "row " + (i+2)));
       names.add(name);
