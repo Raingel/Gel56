@@ -1078,15 +1078,15 @@
 
   <div id="resultPanel" class="analysis-panel result-controls" aria-disabled="true">
     <div class="adjust-title">
-      <span class="step-heading">Step 10 · Band 大小與亮度 <span class="help-tip" tabindex="0" role="note" data-tip="Band 大小是依 ladder 推估；亮度只適合 lane 內相對比較。">?</span></span>
+      <span class="step-heading">Step 10 · Band 大小與亮度 <span class="help-tip" tabindex="0" role="note" data-tip="預設採用相鄰兩個 ladder bands 的 log-linear 內插，不使用整個 100–10,000 bp 範圍的一條直線。超出 ladder 兩端則不外插。亮度只適合 lane 內比較。">?</span></span>
       
     </div>
 
     <label class="field-control" for="sizeMethodSelect">
       <span>大小計算方法</span>
       <select id="sizeMethodSelect" disabled>
+        <option value="local" selected>最近 ladder：上下相鄰片段局部內插</option>
         <option value="semilog">最近 ladder：全範圍半對數迴歸</option>
-        <option value="local">最近 ladder：上下相鄰片段局部內插</option>
       </select>
     </label>
 
@@ -2650,10 +2650,11 @@
 
         ladderSizesInput.value =
           savedAnalysis.ladderSizesText || "";
+        // Honor explicitly saved settings; use the new local default otherwise.
         sizeMethodSelect.value =
-          savedAnalysis.sizeMethod === "local"
-            ? "local"
-            : "semilog";
+          savedAnalysis.sizeMethod === "semilog"
+            ? "semilog"
+            : "local";
         bandLabelModeSelect.value = [
           "none",
           "size",
@@ -4087,7 +4088,9 @@
               );
             }
 
-            if (model.r2 < 0.98) {
+            // Global R² describes only the global semi-log method.
+            // It is not a fit diagnostic for local interpolation.
+            if (sizeMethodSelect.value === "semilog" && model.r2 < 0.98) {
               warnings.push(
                 `L${lane.index + 1} 的半對數模型 R²=${model.r2.toFixed(4)}，` +
                 "配適可能不佳。"
