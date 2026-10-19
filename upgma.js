@@ -103,14 +103,14 @@
     return node;
   }
 
-  function renderTree(root, count) {
+  function renderTree(root, count, axisMode = "distance") {
     const width=1000, rowH=29, top=86, height=Math.max(250,top+count*rowH+52);
     const right=742, range=590;
     const svg=makeSvgNode("svg",{xmlns:NS,version:"1.1",viewBox:"0 0 "+width+" "+height,
       width:width,height:height,role:"img","aria-label":"UPGMA dendrogram (Dice distance)"});
     svg.appendChild(makeSvgNode("rect",{width,height,fill:"#fff"}));
     svg.appendChild(makeSvgNode("text",{x:30,y:27,fill:"#1b2730","font-size":17,"font-family":"Arial,sans-serif","font-weight":"bold"},
-      tr("UPGMA · Dice 距離（1 − similarity）","UPGMA · Dice distance (1 - similarity)","UPGMA · Dice距離（1 − 類似度）")));
+      axisMode === "similarity" ? tr("UPGMA · Dice similarity (%)","UPGMA · Dice similarity (%)","UPGMA · Dice類似度 (%)") : tr("UPGMA · Dice 距離（1 − similarity）","UPGMA · Dice distance (1 - similarity)","UPGMA · Dice距離（1 − 類似度）")));
     const xOf=n=>right-(2*n.height)*range;
     let nextY=top;
     function layout(n) {
@@ -123,13 +123,13 @@
       svg.appendChild(makeSvgNode("line",{x1:x,y1:48,x2:x,y2:top+count*rowH-18,
         stroke:"#dce5eb","stroke-dasharray":"3 5","stroke-width":1}));
       svg.appendChild(makeSvgNode("text",{x,y:44,fill:"#56616b","font-size":12,
-        "font-family":"Arial,sans-serif","text-anchor":"middle"},d.toFixed(1)));
+        "font-family":"Arial,sans-serif","text-anchor":"middle"},axisMode === "similarity" ? Math.round((1-d)*100)+"%" : d.toFixed(1)));
     }
     function branches(n){
       const px=xOf(n);
       if(!n.children){
-        svg.appendChild(makeSvgNode("text",{x:right+13,y:n.y+4,fill:"#182530",
-          "font-size":14,"font-family":"Arial,sans-serif"},n.name));
+        svg.appendChild(appendTitle(makeSvgNode("text",{x:right+13,y:n.y+4,fill:"#182530",
+          "font-size":14,"font-family":"Arial,sans-serif"},n.name.length>29?n.name.slice(0,28)+"…":n.name),n.name));
         return;
       }
       const [a,b]=n.children;
@@ -341,12 +341,14 @@
   modal.hidden=true;
   modal.innerHTML=[
     '<section class="export-dialog" role="dialog" aria-modal="true" aria-labelledby="dendroTitle" style="width:min(1140px,96vw)">',
-    '<div class="export-dialog-header"><h2 id="dendroTitle" class="export-dialog-title">UPGMA · 指紋樹狀圖</h2>',
+    '<div class="export-dialog-header"><h2 id="dendroTitle" class="export-dialog-title">Fingerprint 分群分析</h2>',
     '<button type="button" id="dendroClose">關閉</button></div>',
     '<div class="export-dialog-body" style="display:flex;flex-direction:column;gap:10px">',
     '<div class="panel-note">Dice similarity + UPGMA。只使用 bin 的 0/1；unresolved_bands 不參與計算。這是指紋分群圖，不是親緣演化樹。</div>',
+    '<div class="profile-controls"><label class="field-control" for="dendroView"><span>圖表類型</span><select id="dendroView"><option value="tree">UPGMA dendrogram</option><option value="heatmap">Dice similarity heatmap</option><option value="pcoa">PCoA</option></select></label>',
+    '<label class="field-control" for="dendroAxis"><span>UPGMA 橫軸</span><select id="dendroAxis"><option value="distance">Dice distance (0–1)</option><option value="similarity">Dice similarity (0–100%)</option></select></label></div>',
     '<div class="profile-controls"><button type="button" id="dendroCurrent">帶入目前的 1/0 matrix</button>',
-    '<button type="button" id="dendroRun" class="primary">產生樹狀圖</button>',
+    '<button type="button" id="dendroRun" class="primary">產生圖表</button>',
     '<button type="button" id="dendroSVG" disabled>下載 SVG</button>',
     '<button type="button" id="dendroNewick" disabled>下載 Newick</button></div>',
     '<label class="field-control" for="dendroCSV"><span>1/0 matrix（CSV）</span>',
@@ -359,6 +361,7 @@
   document.body.appendChild(modal);
   const textarea=$("dendroCSV"),status=$("dendroStatus"),plot=$("dendroPlot");
   const svgBtn=$("dendroSVG"),newickBtn=$("dendroNewick");
+  const viewSelect=$("dendroView"),axisSelect=$("dendroAxis");
   let currentSVG=null,currentNewick=null;
   const setStatus=(s,error=false)=>{status.textContent=s;status.style.color=error?"#fba5a5":"";};
   function loadCurrent(){
@@ -377,15 +380,29 @@
     try{
       const matrix=parseMatrix(textarea.value);
       const root=clusterUPGMA(matrix);
-      currentSVG=renderTree(root,matrix.samples.length);
       currentNewick=newick(root);
+      let extra="";
+      if(viewSelect.value==="heatmap"){
+        currentSVG=drawHeatmap(matrix,root);
+      }else if(viewSelect.value==="pcoa"){
+        const {svg,result}=drawPCoA(matrix);
+        currentSVG=svg;
+        if(result.negativeFraction>0.01) extra=" "+tr(
+          "注意：Dice 距離可能不是歐氏距離；PCoA 出現負特徵值，二維位置僅供探索。",
+          "Note: Dice distance is not always Euclidean. Negative eigenvalues make 2D PCoA approximate.",
+          "注意：Dice距離は非ユークリッドの場合があり、負の固有値が生じたため2次元は近似です。");
+        if(!result.converged) extra+=" "+tr(
+          "特徵值迭代未完全收斂，請小心解讀。","Eigenvalue iteration did not fully converge.","固有値の計算が完全には収束していません。");
+      }else{
+        currentSVG=renderTree(root,matrix.samples.length,axisSelect.value);
+      }
       plot.appendChild(currentSVG);
       let msg=tr("完成：","Done: ","完了：")+matrix.samples.length+
         tr(" 個樣本、"," samples, ","試料、")+matrix.columns+
         tr(" 個 band bins。"," band bins.","バンド区分。");
       if(matrix.empty.length)msg+=" "+tr("排除沒有任何 band 的樣本：","All-zero samples excluded: ","バンドのない試料を除外：")+matrix.empty.join(", ")+".";
       if(matrix.unresolved.length)msg+=" "+tr("未能估算大小的 bands 已忽略：","Unresolved bands ignored: ","サイズ不明のバンドは除外：")+matrix.unresolved.join(", ")+".";
-      setStatus(msg);
+      setStatus(msg+extra);
       svgBtn.disabled=false;newickBtn.disabled=false;
     }catch(err){setStatus(String(err.message),true);}
   }
@@ -407,16 +424,21 @@
   $("dendroCloseBottom").addEventListener("click",close);
   $("dendroCurrent").addEventListener("click",loadCurrent);
   $("dendroRun").addEventListener("click",run);
+  viewSelect.addEventListener("change",()=>{
+    axisSelect.disabled = viewSelect.value !== "tree";
+    if(currentSVG) run();
+  });
+  axisSelect.addEventListener("change",()=>{if(currentSVG && viewSelect.value === "tree")run();});
   modal.addEventListener("pointerdown",e=>{if(e.target===modal)close();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!modal.hidden)close();});
   svgBtn.addEventListener("click",()=>{
     if(!currentSVG)return;
     const data='<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(currentSVG);
-    downloadText(data,"gel56_upgma.svg","image/svg+xml;charset=utf-8");
+    downloadText(data,viewSelect.value==="heatmap"?"gel56_dice_heatmap.svg":viewSelect.value==="pcoa"?"gel56_pcoa.svg":"gel56_upgma.svg","image/svg+xml;charset=utf-8");
   });
   newickBtn.addEventListener("click",()=>{
     if(currentNewick)downloadText(currentNewick+"\n","gel56_upgma.nwk","text/plain;charset=utf-8");
   });
 
-  window.Gel56UPGMA = Object.freeze({parseMatrix,clusterUPGMA,diceDistance,newick});
+  window.Gel56UPGMA = Object.freeze({parseMatrix,clusterUPGMA,diceDistance,distanceMatrix,classicalPCoA,leafOrder,newick});
 })();
