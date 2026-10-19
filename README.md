@@ -8,7 +8,7 @@ Gel56 runs in your browser. No installation or server upload is needed. The inte
 
 ## Features
 
-- Rotate, crop, and adjust gel images.
+- Rotate images 90° left or right to fix their orientation, then align, crop, and adjust them.
 - Correct uneven background illumination.
 - Set gel lanes and select DNA ladder lanes.
 - Detect bands automatically, then review or edit them manually.
@@ -20,7 +20,7 @@ Gel56 runs in your browser. No installation or server upload is needed. The inte
 ## How to use
 
 1. Open the [web app](https://raingel.github.io/Gel56/) or download `index.html` and open it in a browser.
-2. Load a gel image, align it, and crop it if needed.
+2. Load a gel image. If it appears sideways, rotate it 90° left or right before drawing the horizontal guide line.
 3. Adjust the image and set the lane positions.
 4. Select the DNA ladder lanes and detect bands.
 5. Review the band calls and enter the ladder fragment sizes.
