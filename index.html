@@ -1,0 +1,5689 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gel56 — Gel Electrophoresis Image Analysis</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101214;
+      --panel: #191d21;
+      --panel-2: #22272d;
+      --text: #eef2f5;
+      --muted: #a8b0b8;
+      --border: #3a424b;
+      --accent: #50b7ff;
+      --danger: #ff6262;
+      --crop: #ffd166;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+
+    header {
+      padding: 18px 22px 14px;
+      border-bottom: 1px solid var(--border);
+      background: #13171a;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 12px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    button, .file-label {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 9px 13px;
+      font: inherit;
+      font-size: 14px;
+      border-radius: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    button:hover:not(:disabled), .file-label:hover {
+      border-color: #65717d;
+      background: #2b3138;
+    }
+
+    button:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      border-color: #277caf;
+      background: #185f89;
+    }
+
+    .primary:hover:not(:disabled) {
+      background: #1d6f9f;
+    }
+
+    .danger {
+      border-color: #7f3d3d;
+    }
+
+    input[type="file"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .status {
+      margin-left: auto;
+      max-width: 42vw;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .adjust-panel {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 18px;
+      padding: 11px 16px;
+      background: #15191d;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .adjust-panel[aria-disabled="true"] {
+      opacity: .5;
+    }
+
+    .adjust-title {
+      display: flex;
+      flex-direction: column;
+      min-width: 145px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .adjust-title small {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .range-control {
+      display: grid;
+      grid-template-columns: auto minmax(130px, 220px) 48px;
+      gap: 8px;
+      align-items: center;
+      font-size: 14px;
+    }
+
+    .range-control input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .range-value {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .check-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .check-control input {
+      width: 17px;
+      height: 17px;
+      accent-color: var(--accent);
+    }
+
+    .analysis-panel {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 14px;
+      padding: 11px 16px;
+      background: #15191d;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .analysis-panel[aria-disabled="true"] {
+      opacity: .5;
+    }
+
+    .number-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .number-control input {
+      width: 76px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 8px 9px;
+      font: inherit;
+    }
+
+    .ladder-panel {
+      align-items: flex-start;
+    }
+
+    .ladder-choices {
+      display: flex;
+      flex: 1 1 520px;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-height: 34px;
+    }
+
+    .lane-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--panel-2);
+      padding: 6px 8px;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .lane-check:has(input:checked) {
+      border-color: #b88a2d;
+      background: #56431d;
+    }
+
+    .lane-check input {
+      margin: 0;
+      accent-color: var(--crop);
+    }
+
+    .panel-note {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .field-control {
+      display: flex;
+      min-width: 185px;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 13px;
+    }
+
+    .field-control > span:first-child {
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .field-control select,
+    .field-control textarea {
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 8px 9px;
+      font: inherit;
+    }
+
+    .field-control select {
+      min-height: 38px;
+    }
+
+    .field-control textarea {
+      width: min(460px, 70vw);
+      min-height: 86px;
+      resize: vertical;
+      line-height: 1.45;
+      tab-size: 2;
+    }
+
+    .wide-control {
+      flex: 1 1 390px;
+    }
+
+    .result-controls {
+      align-items: flex-end;
+    }
+
+    .warning-panel {
+      width: 100%;
+      border: 1px solid #775e28;
+      border-radius: 5px;
+      background: #2b2416;
+      color: #ffe3a0;
+      padding: 9px 12px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .warning-panel.error {
+      border-color: #814343;
+      background: #301b1b;
+      color: #ffc1c1;
+    }
+
+    .warning-panel.success {
+      border-color: #376b52;
+      background: #17291f;
+      color: #b9f0cf;
+    }
+
+    .warning-panel ul {
+      margin: 4px 0 0 18px;
+      padding: 0;
+    }
+
+    .warning-panel[hidden] {
+      display: none;
+    }
+
+    main {
+      padding: 16px;
+    }
+
+    .workspace {
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(45deg, #171b1f 25%, transparent 25%),
+        linear-gradient(-45deg, #171b1f 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #171b1f 75%),
+        linear-gradient(-45deg, transparent 75%, #171b1f 75%),
+        #121518;
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+      min-height: 560px;
+      display: grid;
+      place-items: center;
+      overflow: auto;
+      position: relative;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      display: inline-block;
+      line-height: 0;
+      margin: 20px;
+      box-shadow: 0 10px 35px rgba(0,0,0,.45);
+    }
+
+    canvas {
+      display: block;
+      max-width: min(100%, 1400px);
+      height: auto;
+    }
+
+    #overlayCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .empty {
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.7;
+      padding: 60px 20px;
+    }
+
+    .help {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .help strong { color: var(--text); }
+
+    .mode-line { color: var(--danger); }
+    .mode-crop { color: var(--crop); }
+
+    @media (max-width: 720px) {
+      .status {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .adjust-panel {
+        align-items: stretch;
+      }
+
+      .adjust-title {
+        width: 100%;
+      }
+
+      .analysis-panel {
+        align-items: stretch;
+      }
+
+      .number-control {
+        justify-content: space-between;
+      }
+
+      .ladder-choices {
+        flex-basis: 100%;
+      }
+
+      .field-control,
+      .field-control textarea {
+        width: 100%;
+        max-width: none;
+      }
+
+      .result-controls {
+        align-items: stretch;
+      }
+
+      .range-control {
+        width: 100%;
+        grid-template-columns: 48px minmax(100px, 1fr) 45px;
+      }
+
+      main { padding: 8px; }
+      .workspace { min-height: 420px; }
+      .canvas-wrap { margin: 8px; }
+    }
+  
+    /* Lane profile explorer: axis y is electrophoretic migration (image pixels). */
+    .field-control[hidden] {display:none;}
+    .profile-box { width:100%; border:1px solid var(--border); border-radius:6px; background:#0d1115; padding:8px; }
+    #laneProfileCanvas { width:100%; height:auto; display:block; cursor:crosshair; }
+    #laneProfileCanvas:focus { outline:2px solid var(--accent); }
+    .profile-legend { font-size:12px; color:var(--muted); line-height:1.6; }
+    .profile-legend .blue {color:#55bcff;} .profile-legend .green {color:#7ee081;} .profile-legend .gold {color:#ffd166;}
+    .profile-controls {display:flex; gap:9px; flex-wrap:wrap; align-items:center;}
+    .profile-controls select {min-width:110px; flex:1; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:5px; padding:8px;}
+    .profile-tip {font-size:12px; color:var(--muted); line-height:1.5;}
+
+    /* Step 6: fixed two-column application layout */
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      min-width: 760px;
+    }
+
+    .app-shell {
+      display: grid;
+      grid-template-columns: clamp(330px, 28vw, 420px) minmax(0, 1fr);
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .sidebar {
+      min-width: 0;
+      height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      background: #13171a;
+      scrollbar-gutter: stable;
+    }
+
+    .sidebar header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      padding: 15px 16px 12px;
+      background: rgba(19, 23, 26, .97);
+      backdrop-filter: blur(8px);
+    }
+
+    .sidebar h1 {
+      font-size: 18px;
+    }
+
+    .sidebar .subtitle {
+      font-size: 12px;
+    }
+
+    .sidebar .toolbar {
+      position: static;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .sidebar .toolbar button,
+    .sidebar .toolbar .file-label {
+      display: flex;
+      min-width: 0;
+      min-height: 40px;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 9px;
+      text-align: center;
+      line-height: 1.25;
+    }
+
+    .file-label.awaiting-image {
+      border-color: #d4a63a;
+      background: #5a4519;
+      color: #fff0bd;
+      animation: pending-image-pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pending-image-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 209, 102, 0); }
+      50% { box-shadow: 0 0 0 3px rgba(255, 209, 102, .22); }
+    }
+
+    .sidebar .status {
+      grid-column: 1 / -1;
+      width: 100%;
+      max-width: none;
+      margin: 2px 0 0;
+      padding: 8px 9px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #111519;
+      line-height: 1.4;
+      overflow: visible;
+      text-overflow: clip;
+      white-space: normal;
+    }
+
+    .sidebar .adjust-panel,
+    .sidebar .analysis-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .sidebar .adjust-title {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .sidebar .range-control {
+      width: 100%;
+      grid-template-columns: 58px minmax(0, 1fr) 42px;
+    }
+
+    .sidebar .number-control {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .sidebar .number-control input {
+      width: 96px;
+    }
+
+    .sidebar .analysis-panel > button,
+    .sidebar .adjust-panel > button {
+      width: 100%;
+    }
+
+    .sidebar .ladder-choices {
+      flex: none;
+      width: 100%;
+    }
+
+    .sidebar .field-control,
+    .sidebar .wide-control {
+      width: 100%;
+      min-width: 0;
+      flex: none;
+    }
+
+    .sidebar .field-control textarea {
+      width: 100%;
+      min-height: 110px;
+    }
+
+    .sidebar .warning-panel {
+      max-height: 220px;
+      overflow: auto;
+    }
+
+    .sidebar .help {
+      margin: 0;
+      border-width: 1px 0 0;
+      padding: 0;
+      background: #15191d;
+      font-size: 13px;
+    }
+
+    .sidebar .help > summary {
+      padding: 12px;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .sidebar .help-content {
+      padding: 0 12px 14px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .viewer-pane {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      padding: 0;
+      overflow: hidden;
+      background: #0e1113;
+    }
+
+    .workspace {
+      position: absolute;
+      inset: 0;
+      display: block;
+      min-height: 0;
+      overflow: hidden;
+      border: 0;
+      cursor: default;
+      user-select: none;
+      overscroll-behavior: none;
+    }
+
+    .workspace.is-panning,
+    .workspace.is-panning #overlayCanvas {
+      cursor: grabbing !important;
+    }
+
+    .canvas-wrap {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: inline-block;
+      margin: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+      box-shadow: 0 10px 35px rgba(0,0,0,.45);
+    }
+
+    .canvas-wrap[hidden] {
+      display: none;
+    }
+
+    canvas {
+      max-width: none;
+      max-height: none;
+      width: auto;
+      height: auto;
+    }
+
+    .empty {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 40px;
+      pointer-events: none;
+    }
+
+    .viewer-hud {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid rgba(120, 132, 144, .65);
+      border-radius: 6px;
+      background: rgba(17, 21, 25, .88);
+      backdrop-filter: blur(7px);
+    }
+
+    .viewer-hud button {
+      min-height: 32px;
+      padding: 6px 9px;
+      font-size: 12px;
+    }
+
+    .zoom-readout {
+      min-width: 54px;
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+    }
+
+    .viewer-tip {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      z-index: 30;
+      padding: 6px 9px;
+      border: 1px solid rgba(120, 132, 144, .55);
+      border-radius: 5px;
+      background: rgba(17, 21, 25, .78);
+      color: var(--muted);
+      font-size: 12px;
+      pointer-events: none;
+    }
+
+    @media (max-width: 980px) {
+      body {
+        min-width: 640px;
+      }
+
+      .app-shell {
+        grid-template-columns: 320px minmax(0, 1fr);
+      }
+    }
+
+  
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(0, 0, 0, .68);
+    }
+
+    .modal-backdrop[hidden] {
+      display: none;
+    }
+
+    .export-dialog {
+      width: min(920px, 94vw);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #171b1f;
+      box-shadow: 0 22px 70px rgba(0, 0, 0, .6);
+    }
+
+    .export-dialog-header,
+    .export-dialog-footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      background: #121619;
+    }
+
+    .export-dialog-header {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .export-dialog-footer {
+      justify-content: flex-end;
+      border-top: 1px solid var(--border);
+    }
+
+    .export-dialog-title {
+      flex: 1;
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .export-dialog-body {
+      min-height: 0;
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .export-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .export-options .field-control {
+      min-width: 0;
+    }
+
+    .export-checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    #exportPreview {
+      width: 100%;
+      min-height: 360px;
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: #0e1113;
+      color: var(--text);
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre;
+      tab-size: 4;
+    }
+
+    .export-summary {
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 720px) {
+      .export-options {
+        grid-template-columns: 1fr;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+  <header>
+    <h1>Gel56</h1>
+    <div class="subtitle">.gelproj 預設包含原圖；一次載入即可完整恢復</div>
+  </header>
+
+  <div class="toolbar">
+    <label id="imageLoadLabel" class="file-label" for="fileInput">載入電泳圖</label>
+    <input id="fileInput" type="file" accept="image/*" />
+
+    <button id="saveProjectBtn" disabled>儲存完整專案</button>
+    <button id="downloadImageBtn" disabled>匯出目前影像 PNG</button>
+    <label class="file-label" for="projectInput">載入專案</label>
+    <input id="projectInput" type="file" accept=".gelproj,application/json" />
+
+    <button id="lineModeBtn" disabled>1. 拉水平基準線</button>
+    <button id="rotateBtn" class="primary" disabled>依基準線校正水平</button>
+
+    <button id="cropModeBtn" disabled>2. 框選裁切範圍</button>
+    <button id="cropBtn" class="primary" disabled>套用裁切</button>
+
+    <button id="resetBtn" class="danger" disabled>回到原圖</button>
+
+    <div id="status" class="status">尚未載入圖片</div>
+  </div>
+
+  <div id="adjustPanel" class="adjust-panel" aria-disabled="true">
+    <div class="adjust-title">
+      3. 影像調整
+      <small>先裁切再校正背景；即時預覽，套用後才寫入影像</small>
+    </div>
+
+    <label class="check-control" for="flatFieldInput">
+      <input id="flatFieldInput" type="checkbox" disabled>
+      <span>校正背景照明不均（Flat-field）</span>
+    </label>
+
+    <label class="range-control" for="flatFieldRadiusInput">
+      <span>背景半徑</span>
+      <input id="flatFieldRadiusInput" type="range" min="20" max="300" value="100" step="10" disabled>
+      <output id="flatFieldRadiusValue" class="range-value" for="flatFieldRadiusInput">100 px</output>
+    </label>
+
+    <label class="range-control" for="flatFieldStrengthInput">
+      <span>校正強度</span>
+      <input id="flatFieldStrengthInput" type="range" min="0" max="100" value="100" step="5" disabled>
+      <output id="flatFieldStrengthValue" class="range-value" for="flatFieldStrengthInput">100%</output>
+    </label>
+
+    <label class="check-control" for="flatFieldEqualizeInput">
+      <input id="flatFieldEqualizeInput" type="checkbox" disabled>
+      <span>額外直方圖均衡（僅供強化辨識，不建議量化亮度）</span>
+    </label>
+    <div class="panel-note">參考 notebook：灰階 → Gaussian 背景估計 → 原圖÷背景×背景中位數。半徑以原始像素為單位；直方圖均衡預設關閉。</div>
+
+    <label class="range-control" for="brightnessInput">
+      <span>亮度</span>
+      <input id="brightnessInput" type="range" min="-100" max="100" value="0" step="1" disabled>
+      <output id="brightnessValue" class="range-value" for="brightnessInput">0</output>
+    </label>
+
+    <label class="range-control" for="contrastInput">
+      <span>對比</span>
+      <input id="contrastInput" type="range" min="-100" max="100" value="0" step="1" disabled>
+      <output id="contrastValue" class="range-value" for="contrastInput">0</output>
+    </label>
+
+    <label class="check-control" for="grayscaleInput">
+      <input id="grayscaleInput" type="checkbox" disabled>
+      <span>轉為灰階</span>
+    </label>
+
+    <button id="applyAdjustBtn" class="primary" disabled>套用影像調整</button>
+    <button id="resetAdjustBtn" disabled>重設目前調整</button>
+    <button id="undoAdjustBtn" disabled>撤銷最近一次已套用的影像調整</button>
+  </div>
+
+  <div id="lanePanel" class="analysis-panel" aria-disabled="true">
+    <div class="adjust-title">
+      4. Lane 設定
+      <small>指定第一與最後一條 lane 的中心，再由程式等距均分</small>
+    </div>
+
+    <label class="number-control" for="laneCountInput">
+      <span>Lane 數量</span>
+      <input id="laneCountInput" type="number" min="2" max="96" value="24" step="1" disabled>
+    </label>
+
+    <button id="laneRangeBtn" disabled>指定 lane 頭尾</button>
+    <button id="confirmLanesBtn" class="primary" disabled>確認 lanes</button>
+    <button id="clearLanesBtn" disabled>清除 lanes</button>
+
+    <span id="laneSummary" class="panel-note">尚未指定</span>
+  </div>
+
+  <div id="ladderPanel" class="analysis-panel ladder-panel" aria-disabled="true">
+    <div class="adjust-title">
+      Ladder lanes
+      <small>勾選作為 DNA ladder／marker 的 lane</small>
+    </div>
+    <div id="ladderChoices" class="ladder-choices">
+      <span class="panel-note">確認 lanes 後可選擇</span>
+    </div>
+  </div>
+
+  <div id="bandPanel" class="analysis-panel" aria-disabled="true">
+    <div class="adjust-title">
+      5. Band 偵測
+      <small>預設保留既有 band；需要時才開啟自動更新</small>
+    </div>
+
+    <label class="range-control" for="bandSensitivityInput">
+      <span>敏感度</span>
+      <input id="bandSensitivityInput" type="range" min="1" max="100" value="58" step="1" disabled>
+      <output id="bandSensitivityValue" class="range-value" for="bandSensitivityInput">58</output>
+    </label>
+
+    <label class="check-control" for="autoUpdateBandsInput">
+      <input id="autoUpdateBandsInput" type="checkbox" disabled>
+      <span>調整影像或敏感度時自動更新 bands</span>
+    </label>
+
+    <button id="detectBandsBtn" class="primary" disabled>自動偵測 bands</button>
+    <button id="clearBandsBtn" disabled>清除 bands</button>
+
+    <span class="panel-note">未勾選時，亮度、對比、灰階與敏感度調整都不會移除或重建既有 band。勾選後會重新偵測，並覆蓋人工移動、新增與刪除。</span>
+  </div>
+
+  <div id="profilePanel" class="analysis-panel" aria-disabled="true">
+    <div class="adjust-title">6. Lane 訊號剖面與弱 band 檢查
+      <small>偵測依處理後影像；低於門檻的局部峰值只提供人工參考</small>
+    </div>
+    <div class="profile-controls">
+      <label for="profileLaneSelect">檢視</label>
+      <select id="profileLaneSelect" disabled><option value="0">請先確認 lanes</option></select>
+      <label class="check-control" for="showWeakPeaksInput">
+        <input type="checkbox" id="showWeakPeaksInput" checked disabled>顯示弱訊號候選
+      </label>
+    </div>
+    <div class="profile-box">
+      <canvas id="laneProfileCanvas" width="420" height="255" tabindex="0" aria-label="Lane 縱向訊號剖面圖，點一下在指定高度新增 band"></canvas>
+      <div class="profile-legend"><span class="blue">━━</span> 背景扣除訊號；<span class="gold">┄┄</span> 自動偵測門檻；<span class="green">│</span> 已確認 bands；橘色點：未達門檻的候選峰</div>
+    </div>
+    <div id="profileSummary" class="profile-tip">確認 lanes 後可檢查各條 lane；點擊剖面圖可新增人工 band。</div>
+  </div>
+
+  <div id="calibrationPanel" class="analysis-panel ladder-panel" aria-disabled="true">
+    <div class="adjust-title">
+      7. Ladder 片段大小
+      <small>依膠圖由上到下輸入；所有 ladder lanes 共用同一組片段</small>
+    </div>
+
+    <label class="field-control wide-control" for="ladderSizesInput">
+      <span>片段大小（bp）</span>
+      <textarea id="ladderSizesInput" spellcheck="false" disabled
+        placeholder="例如：&#10;10000&#10;8000&#10;6000&#10;5000&#10;4000&#10;3000&#10;2000&#10;1500&#10;1000&#10;750&#10;500&#10;250"></textarea>
+    </label>
+
+    <button id="validateLadderBtn" disabled>檢查 ladder 對應</button>
+    <span id="ladderSizeSummary" class="panel-note">尚未輸入片段大小</span>
+  </div>
+
+  <div id="resultPanel" class="analysis-panel result-controls" aria-disabled="true">
+    <div class="adjust-title">
+      8. Band 大小與亮度
+      <small>選擇大小推估方法與畫面標示內容</small>
+    </div>
+
+    <label class="field-control" for="sizeMethodSelect">
+      <span>大小計算方法</span>
+      <select id="sizeMethodSelect" disabled>
+        <option value="semilog">最近 ladder：全範圍半對數迴歸</option>
+        <option value="local">最近 ladder：上下相鄰片段局部內插</option>
+      </select>
+    </label>
+
+    <label class="field-control" for="intensitySourceSelect">
+      <span>亮度計算影像來源</span>
+      <select id="intensitySourceSelect" disabled>
+        <option value="raw">原始影像（只同步旋轉與裁切；建議）</option>
+        <option value="display">目前顯示影像（含增強與預覽）</option>
+      </select>
+    </label>
+
+    <span class="panel-note">原始影像模式保留原始像素強度，不受 flat-field、亮度、對比或直方圖均衡影響。兩種模式都先扣除各 lane 的縱向背景；亮度仍僅限 lane 內相對比較。</span>
+
+    <label class="field-control" for="bandLabelModeSelect">
+      <span>Band 標示內容</span>
+      <select id="bandLabelModeSelect" disabled>
+        <option value="none">不顯示數值</option>
+        <option value="size">顯示片段大小</option>
+        <option value="brightness">顯示 lane 內相對亮度</option>
+        <option value="both" selected>同時顯示大小與相對亮度</option>
+      </select>
+    </label>
+
+    <label class="check-control" for="showBandMarkersInput">
+      <input id="showBandMarkersInput" type="checkbox" checked disabled>
+      <span>顯示 band 點</span>
+    </label>
+
+    <button id="calculateResultsBtn" class="primary" disabled>計算大小與亮度</button>
+    <button id="openExportBtn" disabled>匯出結果</button>
+
+    <div id="analysisWarnings" class="warning-panel" hidden aria-live="polite"></div>
+  </div>
+
+  <details class="help">
+    <summary>操作說明與專案檔說明</summary>
+    <div class="help-content">
+<strong>操作方式：</strong><br>
+      ① 載入圖片後，按「拉水平基準線」，沿著你認為本來應該水平的邊緣拖曳一條線。<br>
+      ② 按「依基準線校正水平」，程式會把該線旋轉成水平。<br>
+      ③ 按「框選裁切範圍」，拖曳矩形選取膠體，再按「套用裁切」。<br>
+      ④ 對中央偏亮、邊緣偏暗的膠圖勾選「校正背景照明不均」，預設半徑 100 px；必要時調整強度。會自動轉為灰階。直方圖均衡預設關閉，避免改變 band 亮度比例。確認後按「套用影像調整」，可撤銷最近一次已套用的影像調整。<br>
+      ⑤ 設定 lane 數量，按「指定 lane 頭尾」，由第一條 lane 中心拖到最後一條 lane 中心；均分線會即時顯示。<br>
+      ⑥ 確認 lanes、勾選 ladder lanes，再按「自動偵測 bands」。既有 band 預設會保留；只有勾選「自動更新 bands」時，影像或敏感度變更才會重新偵測並覆蓋人工修正。<br>
+      ⑦ 從「Lane 訊號剖面」查看每條 lane 的背景扣除訊號、偵測門檻與可能的弱 band。橘色峰值只作為人工複核提示；點剖面圖可補 band，點原影像 band 可移動／右鍵刪除。<br>
+      ⑧ 依膠圖由上到下輸入 ladder 的 bp；每個 ladder lane 都必須具有相同數量的 band。<br>
+      ⑨ 可選擇「半對數迴歸」或「最近 ladder 的上下相鄰片段局部內插」。亮度預設使用幾何對齊的原始影像，和偵測用的增強影像分開。<br>
+      程式會提示 ladder 數量不符、模型配適不佳、超出 ladder 範圍、訊號飽和等問題；所有結果仍應由使用者確認。<br>
+      <strong>探索性 1/0 矩陣：</strong>大小分組依目前 ladder 推算及指定百分比容差；0 僅代表「當前標記未偵測到」，跨膠比較或推論同源位點前必須自行驗證。<br>
+      <strong>匯出影像：</strong>「匯出目前影像 PNG」會儲存正在預覽的影像，不含 lane／band 標記；正式實驗分析請保留原始膠圖。<br>
+      <strong>專案檔：</strong>「儲存完整專案」會以原圖檔名產生 <code>.gelproj</code>，並把原始圖片、影像處理步驟、lanes、bands、ladder 與顯示設定全部包在同一檔案。載入新版專案時只需選擇一次 <code>.gelproj</code>。舊版不含圖片的專案仍可載入，但會再要求選擇原圖。
+    </div>
+  </details>
+    </aside>
+
+  <main class="viewer-pane">
+    <div id="workspace" class="workspace">
+      <div class="viewer-hud">
+        <button id="fitViewBtn" type="button">適合視窗</button>
+        <button id="actualSizeBtn" type="button">100%</button>
+        <span id="zoomReadout" class="zoom-readout">100%</span>
+      </div>
+      <div class="viewer-tip">滾輪縮放 · 中鍵拖曳</div>
+
+      <div id="emptyState" class="empty">
+        請按「載入電泳圖」選擇 JPG、PNG 或其他瀏覽器可讀取的影像。
+      </div>
+
+      <div id="canvasWrap" class="canvas-wrap" hidden>
+        <canvas id="imageCanvas"></canvas>
+        <canvas id="overlayCanvas"></canvas>
+      </div>
+    </div>
+
+  </main>
+  </div>
+
+  <div id="exportModal" class="modal-backdrop" hidden>
+    <section class="export-dialog" role="dialog" aria-modal="true" aria-labelledby="exportDialogTitle">
+      <div class="export-dialog-header">
+        <h2 id="exportDialogTitle" class="export-dialog-title">匯出分析結果</h2>
+        <button id="closeExportBtn" type="button">關閉</button>
+      </div>
+
+      <div class="export-dialog-body">
+        <div class="export-options">
+          <label class="field-control" for="exportFormatSelect">
+            <span>輸出格式</span>
+            <select id="exportFormatSelect">
+              <option value="compact">每個樣品一行（size:relative brightness）</option>
+              <option value="table-tsv">長格式表格（TSV）</option>
+              <option value="table-csv">長格式表格（CSV）</option>
+              <option value="matrix-csv">探索性 band 1/0 矩陣（CSV）</option>
+            </select>
+          </label>
+
+          <label class="field-control" id="matrixToleranceControl" for="matrixToleranceInput" hidden>
+            <span>同一片段大小分組容許差（%）</span>
+            <input id="matrixToleranceInput" type="number" min="0.5" max="15" step="0.5" value="4" style="width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:8px;">
+          </label>
+          <label class="field-control" for="exportBrightnessScaleSelect">
+            <span>相對亮度格式</span>
+            <select id="exportBrightnessScaleSelect">
+              <option value="fraction">0–1（例如 0.667）</option>
+              <option value="percent">0–100（例如 66.7）</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="export-checks">
+          <label class="check-control" for="includeLadderHeaderInput">
+            <input id="includeLadderHeaderInput" type="checkbox" checked>
+            <span>第一行輸出 ladder 片段大小</span>
+          </label>
+
+          <label class="check-control" for="includeLaneNameInput">
+            <input id="includeLaneNameInput" type="checkbox">
+            <span>每行加上 lane 名稱</span>
+          </label>
+
+          <label class="check-control" for="includeLadderLanesInput">
+            <input id="includeLadderLanesInput" type="checkbox">
+            <span>包含 ladder lanes</span>
+          </label>
+        </div>
+
+        <div id="exportSummary" class="export-summary"></div>
+        <textarea id="exportPreview" readonly spellcheck="false"></textarea>
+      </div>
+
+      <div class="export-dialog-footer">
+        <button id="copyExportBtn" type="button">複製</button>
+        <button id="downloadExportBtn" type="button" class="primary">下載文字檔</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const fileInput = document.getElementById("fileInput");
+      const imageLoadLabel = document.getElementById("imageLoadLabel");
+      const saveProjectBtn = document.getElementById("saveProjectBtn");
+      const downloadImageBtn = document.getElementById("downloadImageBtn");
+      const projectInput = document.getElementById("projectInput");
+      const lineModeBtn = document.getElementById("lineModeBtn");
+      const rotateBtn = document.getElementById("rotateBtn");
+      const cropModeBtn = document.getElementById("cropModeBtn");
+      const cropBtn = document.getElementById("cropBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const statusEl = document.getElementById("status");
+
+      const adjustPanel = document.getElementById("adjustPanel");
+      const flatFieldInput = document.getElementById("flatFieldInput");
+      const flatFieldRadiusInput = document.getElementById("flatFieldRadiusInput");
+      const flatFieldRadiusValue = document.getElementById("flatFieldRadiusValue");
+      const flatFieldStrengthInput = document.getElementById("flatFieldStrengthInput");
+      const flatFieldStrengthValue = document.getElementById("flatFieldStrengthValue");
+      const flatFieldEqualizeInput = document.getElementById("flatFieldEqualizeInput");
+      const undoAdjustBtn = document.getElementById("undoAdjustBtn");
+      const brightnessInput = document.getElementById("brightnessInput");
+      const brightnessValue = document.getElementById("brightnessValue");
+      const contrastInput = document.getElementById("contrastInput");
+      const contrastValue = document.getElementById("contrastValue");
+      const grayscaleInput = document.getElementById("grayscaleInput");
+      const applyAdjustBtn = document.getElementById("applyAdjustBtn");
+      const resetAdjustBtn = document.getElementById("resetAdjustBtn");
+
+      const lanePanel = document.getElementById("lanePanel");
+      const laneCountInput = document.getElementById("laneCountInput");
+      const laneRangeBtn = document.getElementById("laneRangeBtn");
+      const confirmLanesBtn = document.getElementById("confirmLanesBtn");
+      const clearLanesBtn = document.getElementById("clearLanesBtn");
+      const laneSummary = document.getElementById("laneSummary");
+
+      const ladderPanel = document.getElementById("ladderPanel");
+      const ladderChoices = document.getElementById("ladderChoices");
+
+      const bandPanel = document.getElementById("bandPanel");
+      const bandSensitivityInput = document.getElementById("bandSensitivityInput");
+      const bandSensitivityValue = document.getElementById("bandSensitivityValue");
+      const autoUpdateBandsInput = document.getElementById("autoUpdateBandsInput");
+      const detectBandsBtn = document.getElementById("detectBandsBtn");
+      const clearBandsBtn = document.getElementById("clearBandsBtn");
+
+      const calibrationPanel = document.getElementById("calibrationPanel");
+      const ladderSizesInput = document.getElementById("ladderSizesInput");
+      const validateLadderBtn = document.getElementById("validateLadderBtn");
+      const ladderSizeSummary = document.getElementById("ladderSizeSummary");
+
+      const profilePanel = document.getElementById("profilePanel");
+      const profileLaneSelect = document.getElementById("profileLaneSelect");
+      const showWeakPeaksInput = document.getElementById("showWeakPeaksInput");
+      const laneProfileCanvas = document.getElementById("laneProfileCanvas");
+      const profileSummary = document.getElementById("profileSummary");
+      const profileCtx = laneProfileCanvas.getContext("2d");
+      const resultPanel = document.getElementById("resultPanel");
+      const intensitySourceSelect = document.getElementById("intensitySourceSelect");
+      const sizeMethodSelect = document.getElementById("sizeMethodSelect");
+      const bandLabelModeSelect = document.getElementById("bandLabelModeSelect");
+      const showBandMarkersInput = document.getElementById("showBandMarkersInput");
+      const calculateResultsBtn = document.getElementById("calculateResultsBtn");
+      const openExportBtn = document.getElementById("openExportBtn");
+      const analysisWarnings = document.getElementById("analysisWarnings");
+
+      const exportModal = document.getElementById("exportModal");
+      const closeExportBtn = document.getElementById("closeExportBtn");
+      const exportFormatSelect = document.getElementById("exportFormatSelect");
+      const exportBrightnessScaleSelect = document.getElementById("exportBrightnessScaleSelect");
+      const matrixToleranceControl = document.getElementById("matrixToleranceControl");
+      const matrixToleranceInput = document.getElementById("matrixToleranceInput");
+      const includeLadderHeaderInput = document.getElementById("includeLadderHeaderInput");
+      const includeLaneNameInput = document.getElementById("includeLaneNameInput");
+      const includeLadderLanesInput = document.getElementById("includeLadderLanesInput");
+      const exportSummary = document.getElementById("exportSummary");
+      const exportPreview = document.getElementById("exportPreview");
+      const copyExportBtn = document.getElementById("copyExportBtn");
+      const downloadExportBtn = document.getElementById("downloadExportBtn");
+
+      const workspace = document.getElementById("workspace");
+      const fitViewBtn = document.getElementById("fitViewBtn");
+      const actualSizeBtn = document.getElementById("actualSizeBtn");
+      const zoomReadout = document.getElementById("zoomReadout");
+
+      const emptyState = document.getElementById("emptyState");
+      const canvasWrap = document.getElementById("canvasWrap");
+      const imageCanvas = document.getElementById("imageCanvas");
+      const overlayCanvas = document.getElementById("overlayCanvas");
+      const imageCtx = imageCanvas.getContext("2d", { willReadFrequently: true });
+      const overlayCtx = overlayCanvas.getContext("2d");
+
+      const bpFormatter = new Intl.NumberFormat("zh-TW", {
+        maximumFractionDigits: 0
+      });
+
+      let originalBitmap = null;
+      let originalFileMeta = null;
+      let originalImageDataUrl = null;
+      let workingCanvas = document.createElement("canvas");
+      let flatFieldPreviewCache = null;
+      let flatFieldPreviewTimer = null;
+
+      let viewScale = 1;
+      let viewOffsetX = 0;
+      let viewOffsetY = 0;
+      let viewInitialized = false;
+      let viewIsPanning = false;
+      let viewPanStart = null;
+      let imageOperations = [];
+      let pendingProject = null;
+
+      // none | line | crop | lane-range
+      let mode = "none";
+      let isDragging = false;
+      let dragStart = null;
+      let dragCurrent = null;
+      let guideLine = null;
+      let cropRect = null;
+
+      let laneRange = null;
+      let lanes = [];
+      let lanesConfirmed = false;
+      let laneCountCommitted = 24;
+
+      let bands = [];
+      let nextBandId = 1;
+      let draggedBand = null;
+      let hasRunBandDetection = false;
+      let liveDetectionTimer = null;
+      let recalculationTimer = null;
+      let bandDetectionCache = null;
+      let rawProfileCache = null;
+      let profileSelectedLane = 0;
+      let profileRenderTimer = null;
+
+      let hasCalculatedResults = false;
+      let resultsValid = false;
+
+      function clamp(value, minimum, maximum) {
+        return Math.max(minimum, Math.min(maximum, value));
+      }
+
+      function applyViewTransform() {
+        canvasWrap.style.transform =
+          `translate(${viewOffsetX}px, ${viewOffsetY}px) scale(${viewScale})`;
+        zoomReadout.textContent =
+          `${Math.round(viewScale * 100)}%`;
+      }
+
+      function centerImageAtScale(scale) {
+        if (!imageCanvas.width || !imageCanvas.height) {
+          return;
+        }
+
+        const rect = workspace.getBoundingClientRect();
+        viewScale = clamp(scale, 0.03, 12);
+        viewOffsetX =
+          (rect.width - imageCanvas.width * viewScale) / 2;
+        viewOffsetY =
+          (rect.height - imageCanvas.height * viewScale) / 2;
+        viewInitialized = true;
+        applyViewTransform();
+      }
+
+      function fitImageToWorkspace() {
+        if (
+          canvasWrap.hidden ||
+          !imageCanvas.width ||
+          !imageCanvas.height
+        ) {
+          return;
+        }
+
+        const rect = workspace.getBoundingClientRect();
+        const padding = 34;
+        const availableWidth = Math.max(
+          1,
+          rect.width - padding * 2
+        );
+        const availableHeight = Math.max(
+          1,
+          rect.height - padding * 2
+        );
+        const fitScale = Math.min(
+          availableWidth / imageCanvas.width,
+          availableHeight / imageCanvas.height,
+          1
+        );
+
+        centerImageAtScale(fitScale);
+      }
+
+      function zoomAtWorkspacePoint(
+        nextScale,
+        workspaceX,
+        workspaceY
+      ) {
+        if (!imageCanvas.width || !imageCanvas.height) {
+          return;
+        }
+
+        const clampedScale = clamp(nextScale, 0.03, 12);
+        const imageX =
+          (workspaceX - viewOffsetX) / viewScale;
+        const imageY =
+          (workspaceY - viewOffsetY) / viewScale;
+
+        viewScale = clampedScale;
+        viewOffsetX =
+          workspaceX - imageX * viewScale;
+        viewOffsetY =
+          workspaceY - imageY * viewScale;
+        viewInitialized = true;
+        applyViewTransform();
+      }
+
+      function scheduleAutoFitIfNeeded(
+        sizeChanged
+      ) {
+        if (!sizeChanged && viewInitialized) {
+          return;
+        }
+
+        requestAnimationFrame(() => {
+          fitImageToWorkspace();
+        });
+      }
+
+      function setStatus(message) {
+        statusEl.textContent = message;
+        statusEl.title = message;
+      }
+
+      function setMode(nextMode) {
+        mode = nextMode;
+        isDragging = false;
+        dragStart = null;
+        dragCurrent = null;
+        draggedBand = null;
+
+        lineModeBtn.classList.toggle("primary", mode === "line");
+        cropModeBtn.classList.toggle("primary", mode === "crop");
+        laneRangeBtn.classList.toggle("primary", mode === "lane-range");
+
+        if (mode === "none") {
+          overlayCanvas.style.cursor = bands.length ? "grab" : "default";
+        } else {
+          overlayCanvas.style.cursor = "crosshair";
+        }
+
+        if (mode === "line") {
+          setStatus("沿著應該水平的邊緣拖曳一條基準線");
+        } else if (mode === "crop") {
+          setStatus("拖曳矩形框選要保留的範圍");
+        } else if (mode === "lane-range") {
+          setStatus("由第一條 lane 的中心拖到最後一條 lane 的中心");
+        }
+
+        drawOverlay();
+      }
+
+      // Gaussian illumination/background estimation, approximated efficiently by
+      // three edge-clamped box blurs on a reduced-resolution grayscale copy.
+      // The original image is NEVER overwritten during a preview.
+      function gaussianBoxSizes(sigma, count = 3) {
+        const ideal = Math.sqrt(12 * sigma * sigma / count + 1);
+        let lower = Math.floor(ideal);
+        if (lower % 2 === 0) lower--;
+        lower = Math.max(1, lower);
+        const upper = lower + 2;
+        const split = Math.round(
+          (12 * sigma * sigma - count * lower * lower -
+           4 * count * lower - 3 * count) / (-4 * lower - 4)
+        );
+        return Array.from({ length: count }, (_, i) =>
+          i < clamp(split, 0, count) ? lower : upper
+        );
+      }
+
+      function boxBlurAxis(src, width, height, radius, horizontal) {
+        if (radius <= 0) return src;
+        const dst = new Float32Array(src.length);
+        const divisor = radius * 2 + 1;
+        if (horizontal) {
+          for (let y = 0; y < height; y++) {
+            const row = y * width;
+            let sum = src[row] * (radius + 1);
+            for (let k = 1; k <= radius; k++) {
+              sum += src[row + Math.min(width - 1, k)];
+            }
+            dst[row] = sum / divisor;
+            for (let x = 1; x < width; x++) {
+              sum += src[row + Math.min(width - 1, x + radius)] -
+                     src[row + Math.max(0, x - radius - 1)];
+              dst[row + x] = sum / divisor;
+            }
+          }
+        } else {
+          for (let x = 0; x < width; x++) {
+            let sum = src[x] * (radius + 1);
+            for (let k = 1; k <= radius; k++) {
+              sum += src[Math.min(height - 1, k) * width + x];
+            }
+            dst[x] = sum / divisor;
+            for (let y = 1; y < height; y++) {
+              sum += src[Math.min(height - 1, y + radius) * width + x] -
+                     src[Math.max(0, y - radius - 1) * width + x];
+              dst[y * width + x] = sum / divisor;
+            }
+          }
+        }
+        return dst;
+      }
+
+      function approximateGaussian(gray, width, height, sigma) {
+        let pixels = gray;
+        for (const size of gaussianBoxSizes(Math.max(0.5, sigma))) {
+          const radius = (size - 1) / 2;
+          pixels = boxBlurAxis(pixels, width, height, radius, true);
+          pixels = boxBlurAxis(pixels, width, height, radius, false);
+        }
+        return pixels;
+      }
+
+      function getFlatFieldOptions() {
+        return {
+          enabled: flatFieldInput.checked,
+          radius: Number(flatFieldRadiusInput.value),
+          strength: Number(flatFieldStrengthInput.value),
+          equalize: flatFieldEqualizeInput.checked
+        };
+      }
+
+      function buildFlatFieldCorrectedCanvas(source, opts) {
+        const width = source.width;
+        const height = source.height;
+        const radius = clamp(Number(opts.radius) || 100, 20, 300);
+        const strength = clamp(Number(opts.strength) || 0, 0, 100) / 100;
+        const equalize = Boolean(opts.equalize);
+
+        // Low-resolution estimation avoids O(radius * width * height)
+        // work, while preserving full-resolution bands in the output.
+        const downsample = Math.max(1, Math.ceil(Math.max(width, height) / 850));
+        const smallW = Math.max(1, Math.ceil(width / downsample));
+        const smallH = Math.max(1, Math.ceil(height / downsample));
+        const small = document.createElement("canvas");
+        small.width = smallW;
+        small.height = smallH;
+        const smallCtx = small.getContext("2d", { willReadFrequently: true });
+        smallCtx.imageSmoothingEnabled = true;
+        smallCtx.imageSmoothingQuality = "high";
+        smallCtx.drawImage(source, 0, 0, smallW, smallH);
+        const reduced = smallCtx.getImageData(0, 0, smallW, smallH).data;
+        const smallGray = new Float32Array(smallW * smallH);
+        for (let i = 0, p = 0; i < smallGray.length; i++, p += 4) {
+          smallGray[i] = 0.299 * reduced[p] +
+                         0.587 * reduced[p + 1] +
+                         0.114 * reduced[p + 2];
+        }
+        const background = approximateGaussian(
+          smallGray, smallW, smallH, radius / downsample
+        );
+        const medianValues = Float32Array.from(background).sort();
+        const half = Math.floor(medianValues.length / 2);
+        const bgMedian = medianValues.length % 2
+          ? medianValues[half]
+          : (medianValues[half - 1] + medianValues[half]) / 2;
+
+        const readCtx = source.getContext("2d", { willReadFrequently: true });
+        const output = document.createElement("canvas");
+        output.width = width;
+        output.height = height;
+        const outCtx = output.getContext("2d", { willReadFrequently: true });
+        const src = readCtx.getImageData(0, 0, width, height).data;
+        const dstImage = outCtx.createImageData(width, height);
+        const dst = dstImage.data;
+        const histogram = equalize ? new Uint32Array(256) : null;
+        const x0 = new Int32Array(width);
+        const x1 = new Int32Array(width);
+        const fx = new Float32Array(width);
+        for (let x = 0; x < width; x++) {
+          const smallX = (x + 0.5) * smallW / width - 0.5;
+          const floorX = Math.floor(smallX);
+          x0[x] = clamp(floorX, 0, smallW - 1);
+          x1[x] = clamp(floorX + 1, 0, smallW - 1);
+          fx[x] = clamp(smallX - floorX, 0, 1);
+        }
+        for (let y = 0; y < height; y++) {
+          const smallY = (y + 0.5) * smallH / height - 0.5;
+          const floorY = Math.floor(smallY);
+          const y0 = clamp(floorY, 0, smallH - 1) * smallW;
+          const y1 = clamp(floorY + 1, 0, smallH - 1) * smallW;
+          const fy = clamp(smallY - floorY, 0, 1);
+          for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4;
+            // RGB -> L, matching the grayscale step in the notebook.
+            const gray = 0.299 * src[i] + 0.587 * src[i + 1] +
+                         0.114 * src[i + 2];
+            const top = background[y0 + x0[x]] * (1 - fx[x]) +
+                        background[y0 + x1[x]] * fx[x];
+            const bottom = background[y1 + x0[x]] * (1 - fx[x]) +
+                           background[y1 + x1[x]] * fx[x];
+            const bg = Math.max(1, top * (1 - fy) + bottom * fy);
+            const corrected = clamp(
+              Math.round(gray * (1 + strength * (bgMedian / bg - 1))),
+              0, 255
+            );
+            dst[i] = dst[i + 1] = dst[i + 2] = corrected;
+            dst[i + 3] = 255;
+            if (histogram) histogram[corrected]++;
+          }
+        }
+        if (histogram) {
+          const cumulative = new Uint32Array(256);
+          let total = 0;
+          let minimum = 0;
+          for (let i = 0; i < 256; i++) {
+            total += histogram[i];
+            cumulative[i] = total;
+            if (!minimum && histogram[i]) minimum = total;
+          }
+          if (total > minimum) {
+            const lut = new Uint8Array(256);
+            for (let i = 0; i < 256; i++) {
+              lut[i] = clamp(
+                Math.round((cumulative[i] - minimum) * 255 / (total - minimum)),
+                0, 255
+              );
+            }
+            for (let i = 0; i < dst.length; i += 4) {
+              dst[i] = dst[i + 1] = dst[i + 2] = lut[dst[i]];
+            }
+          }
+        }
+        outCtx.putImageData(dstImage, 0, 0);
+        return output;
+      }
+
+      function invalidateFlatFieldPreviewCache() {
+        flatFieldPreviewCache = null;
+      }
+
+      function getPreviewAdjustmentSource() {
+        const options = getFlatFieldOptions();
+        if (!options.enabled) return workingCanvas;
+        const key = `${options.radius}/${options.strength}/${options.equalize}`;
+        if (flatFieldPreviewCache?.source === workingCanvas &&
+            flatFieldPreviewCache.key === key) {
+          return flatFieldPreviewCache.canvas;
+        }
+        const canvas = buildFlatFieldCorrectedCanvas(workingCanvas, options);
+        flatFieldPreviewCache = { source: workingCanvas, key, canvas };
+        return canvas;
+      }
+
+      function buildAdjustmentFilter(
+        brightness,
+        contrast,
+        grayscale
+      ) {
+        const brightnessPercent = Math.max(
+          0,
+          100 + Number(brightness)
+        );
+        const contrastPercent = Math.max(
+          0,
+          100 + Number(contrast)
+        );
+        const grayscalePercent = grayscale ? 100 : 0;
+
+        return [
+          `brightness(${brightnessPercent}%)`,
+          `contrast(${contrastPercent}%)`,
+          `grayscale(${grayscalePercent}%)`
+        ].join(" ");
+      }
+
+      function getAdjustmentFilter() {
+        return buildAdjustmentFilter(
+          brightnessInput.value,
+          contrastInput.value,
+          grayscaleInput.checked
+        );
+      }
+
+      function hasPendingAdjustments() {
+        return Number(brightnessInput.value) !== 0 ||
+               Number(contrastInput.value) !== 0 ||
+               grayscaleInput.checked ||
+               flatFieldInput.checked;
+      }
+
+      function updateAdjustmentReadouts() {
+        const brightness = Number(brightnessInput.value);
+        const contrast = Number(contrastInput.value);
+
+        brightnessValue.textContent =
+          brightness > 0 ? `+${brightness}` : `${brightness}`;
+        contrastValue.textContent =
+          contrast > 0 ? `+${contrast}` : `${contrast}`;
+        flatFieldRadiusValue.textContent = `${flatFieldRadiusInput.value} px`;
+        flatFieldStrengthValue.textContent = `${flatFieldStrengthInput.value}%`;
+        const flatEnabled = Boolean(originalBitmap) && flatFieldInput.checked;
+        flatFieldRadiusInput.disabled = !flatEnabled;
+        flatFieldStrengthInput.disabled = !flatEnabled;
+        flatFieldEqualizeInput.disabled = !flatEnabled;
+        undoAdjustBtn.disabled = !originalBitmap ||
+          imageOperations.at(-1)?.type !== "adjust";
+
+        const changed = hasPendingAdjustments();
+        applyAdjustBtn.disabled = !originalBitmap || !changed;
+        resetAdjustBtn.disabled = !originalBitmap || !changed;
+      }
+
+      function renderAdjustedPreview() {
+        if (!workingCanvas.width || !workingCanvas.height) return;
+
+        imageCtx.save();
+        imageCtx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+        imageCtx.filter = getAdjustmentFilter();
+        imageCtx.drawImage(getPreviewAdjustmentSource(), 0, 0);
+        imageCtx.restore();
+
+        drawOverlay();
+      }
+
+      function resetPendingAdjustments(render = true) {
+        clearTimeout(flatFieldPreviewTimer);
+        flatFieldInput.checked = false;
+        flatFieldRadiusInput.value = "100";
+        flatFieldStrengthInput.value = "100";
+        flatFieldEqualizeInput.checked = false;
+        invalidateFlatFieldPreviewCache();
+        brightnessInput.value = "0";
+        contrastInput.value = "0";
+        grayscaleInput.checked = false;
+        updateAdjustmentReadouts();
+
+        if (render && originalBitmap) {
+          renderAdjustedPreview();
+        }
+      }
+
+      function syncVisibleCanvasFromWorking() {
+        invalidateFlatFieldPreviewCache();
+        const sizeChanged =
+          imageCanvas.width !== workingCanvas.width ||
+          imageCanvas.height !== workingCanvas.height;
+
+        imageCanvas.width = workingCanvas.width;
+        imageCanvas.height = workingCanvas.height;
+        overlayCanvas.width = workingCanvas.width;
+        overlayCanvas.height = workingCanvas.height;
+        renderAdjustedPreview();
+        scheduleAutoFitIfNeeded(sizeChanged);
+      }
+
+      function invalidateBandDetectionCache() {
+        bandDetectionCache = null;
+        rawProfileCache = null;
+        scheduleProfileRender();
+      }
+
+      function clearBandMetrics() {
+        bands.forEach(band => {
+          delete band.bp;
+          delete band.integratedIntensity;
+          delete band.relativeIntensity;
+          delete band.saturated;
+          delete band.extrapolated;
+          delete band.referenceLaneIndex;
+          delete band.intensitySource;
+        });
+        resultsValid = false;
+      }
+
+      function hideAnalysisMessages() {
+        analysisWarnings.hidden = true;
+        analysisWarnings.className = "warning-panel";
+        analysisWarnings.replaceChildren();
+      }
+
+      function showAnalysisMessages(messages, severity = "warning") {
+        analysisWarnings.replaceChildren();
+        analysisWarnings.hidden = false;
+        analysisWarnings.className = "warning-panel";
+
+        if (severity === "error") {
+          analysisWarnings.classList.add("error");
+        } else if (severity === "success") {
+          analysisWarnings.classList.add("success");
+        }
+
+        if (!Array.isArray(messages)) {
+          messages = [messages];
+        }
+
+        if (messages.length === 1) {
+          analysisWarnings.textContent = messages[0];
+          return;
+        }
+
+        const intro = document.createElement("div");
+        intro.textContent = severity === "error"
+          ? "目前無法完成計算："
+          : severity === "success"
+            ? "檢查結果："
+            : "請注意：";
+
+        const list = document.createElement("ul");
+        messages.forEach(message => {
+          const item = document.createElement("li");
+          item.textContent = message;
+          list.appendChild(item);
+        });
+
+        analysisWarnings.append(intro, list);
+      }
+
+      function parseLadderSizes() {
+        const raw = ladderSizesInput.value.trim();
+        const errors = [];
+        const warnings = [];
+
+        if (!raw) {
+          return {
+            sizes: [],
+            errors: ["尚未輸入 ladder 片段大小。"],
+            warnings
+          };
+        }
+
+        const tokens = raw.split(/[\s,;，、]+/).filter(Boolean);
+        const sizes = [];
+
+        tokens.forEach(token => {
+          const value = Number(token);
+          if (!Number.isFinite(value) || value <= 0) {
+            errors.push(`「${token}」不是有效的正數 bp。`);
+          } else {
+            sizes.push(value);
+          }
+        });
+
+        if (sizes.length < 2 && errors.length === 0) {
+          errors.push("至少需要兩個 ladder 片段，才能估算未知 band 大小。");
+        }
+
+        for (let i = 1; i < sizes.length; i++) {
+          if (sizes[i] >= sizes[i - 1]) {
+            errors.push(
+              "片段大小必須依膠圖由上到下嚴格遞減，例如 10000、8000、6000……"
+            );
+            break;
+          }
+        }
+
+        if (new Set(sizes).size !== sizes.length) {
+          warnings.push("輸入中包含重複的片段大小，請確認是否正確。");
+        }
+
+        return { sizes, errors, warnings };
+      }
+
+      function updateLadderSizeSummary() {
+        const parsed = parseLadderSizes();
+
+        if (!ladderSizesInput.value.trim()) {
+          ladderSizeSummary.textContent = "尚未輸入片段大小";
+        } else if (parsed.errors.length) {
+          ladderSizeSummary.textContent = "輸入格式尚未通過檢查";
+        } else {
+          ladderSizeSummary.textContent =
+            `已輸入 ${parsed.sizes.length} 個片段（${bpFormatter.format(parsed.sizes[0])}–${bpFormatter.format(parsed.sizes.at(-1))} bp）`;
+        }
+      }
+
+      function getSelectedLadderLanes() {
+        return lanes.filter(lane => lane.isLadder);
+      }
+
+      function updateAnalysisControls() {
+        const hasImage = Boolean(originalBitmap);
+
+        laneCountInput.disabled = !hasImage;
+        laneRangeBtn.disabled = !hasImage;
+        lanePanel.setAttribute("aria-disabled", String(!hasImage));
+
+        const hasRange = Boolean(laneRange) &&
+          Math.abs(laneRange.endX - laneRange.startX) >= 10;
+        confirmLanesBtn.disabled = !hasImage || !hasRange;
+        clearLanesBtn.disabled = !hasImage || (!laneRange && !lanes.length);
+
+        ladderPanel.setAttribute("aria-disabled", String(!lanesConfirmed));
+        bandPanel.setAttribute("aria-disabled", String(!lanesConfirmed));
+        calibrationPanel.setAttribute("aria-disabled", String(!lanesConfirmed));
+        resultPanel.setAttribute("aria-disabled", String(!lanesConfirmed));
+
+        bandSensitivityInput.disabled = !lanesConfirmed;
+        autoUpdateBandsInput.disabled = !lanesConfirmed;
+        detectBandsBtn.disabled = !lanesConfirmed;
+        clearBandsBtn.disabled = bands.length === 0;
+
+        ladderSizesInput.disabled = !lanesConfirmed;
+        validateLadderBtn.disabled = !lanesConfirmed;
+
+        sizeMethodSelect.disabled = !lanesConfirmed;
+        bandLabelModeSelect.disabled = !lanesConfirmed;
+        showBandMarkersInput.disabled = !lanesConfirmed;
+        calculateResultsBtn.disabled =
+          !lanesConfirmed || bands.length === 0;
+        openExportBtn.disabled =
+          !lanesConfirmed || bands.length === 0 || !resultsValid;
+        intensitySourceSelect.disabled = !lanesConfirmed;
+        profilePanel.setAttribute("aria-disabled", String(!lanesConfirmed));
+        profileLaneSelect.disabled = !lanesConfirmed;
+        showWeakPeaksInput.disabled = !lanesConfirmed;
+        syncProfileLaneOptions();
+
+        if (!hasImage) {
+          laneSummary.textContent = "尚未指定";
+        } else if (!laneRange) {
+          laneSummary.textContent = "尚未指定";
+        } else if (!lanesConfirmed) {
+          laneSummary.textContent = `預覽：${getLaneCount()} lanes`;
+        } else {
+          const ladderCount = getSelectedLadderLanes().length;
+          laneSummary.textContent =
+            `${lanes.length} lanes 已確認；${ladderCount} 條 ladder`;
+        }
+      }
+
+      function enableControls(enabled) {
+        saveProjectBtn.disabled = !enabled;
+        downloadImageBtn.disabled = !enabled;
+        lineModeBtn.disabled = !enabled;
+        cropModeBtn.disabled = !enabled;
+        resetBtn.disabled = !enabled;
+
+        brightnessInput.disabled = !enabled;
+        contrastInput.disabled = !enabled;
+        grayscaleInput.disabled = !enabled;
+        flatFieldInput.disabled = !enabled;
+        flatFieldRadiusInput.disabled = !enabled || !flatFieldInput.checked;
+        flatFieldStrengthInput.disabled = !enabled || !flatFieldInput.checked;
+        flatFieldEqualizeInput.disabled = !enabled || !flatFieldInput.checked;
+        undoAdjustBtn.disabled = !enabled ||
+          imageOperations.at(-1)?.type !== "adjust";
+        adjustPanel.setAttribute("aria-disabled", String(!enabled));
+
+        if (!enabled) {
+          rotateBtn.disabled = true;
+          cropBtn.disabled = true;
+          applyAdjustBtn.disabled = true;
+          resetAdjustBtn.disabled = true;
+        } else {
+          updateAdjustmentReadouts();
+        }
+
+        updateAnalysisControls();
+      }
+
+      function getTypedLaneCount() {
+        const raw = laneCountInput.value.trim();
+        if (!raw) return null;
+
+        const value = Number(raw);
+        if (!Number.isInteger(value) || value < 2 || value > 96) {
+          return null;
+        }
+
+        return value;
+      }
+
+      function getLaneCount() {
+        return getTypedLaneCount() ?? laneCountCommitted;
+      }
+
+      function commitLaneCount() {
+        const rawValue = Number(laneCountInput.value);
+        const parsed = Number.isFinite(rawValue)
+          ? Math.round(rawValue)
+          : laneCountCommitted;
+        const next = Math.max(2, Math.min(96, parsed));
+
+        laneCountCommitted = next;
+        laneCountInput.value = String(next);
+        return next;
+      }
+
+      function invalidateConfirmedLanesForCountChange(count) {
+        if (!laneRange) return;
+
+        if (lanesConfirmed || lanes.length || bands.length) {
+          lanesConfirmed = false;
+          lanes = [];
+          clearBandData(false);
+          rebuildLadderChoices();
+        }
+
+        clearBandMetrics();
+        updateAnalysisControls();
+        drawOverlay();
+        setStatus(
+          `Lane 數量改為 ${count}；請確認均分線後再次按「確認 lanes」`
+        );
+      }
+
+      function getLaneGeometry() {
+        if (!laneRange) return [];
+
+        const count = getLaneCount();
+        const left = Math.min(laneRange.startX, laneRange.endX);
+        const right = Math.max(laneRange.startX, laneRange.endX);
+        const spacing = count > 1 ? (right - left) / (count - 1) : 0;
+        const laneWidth = Math.max(4, spacing * 0.62);
+
+        return Array.from({ length: count }, (_, index) => ({
+          index,
+          x: left + spacing * index,
+          width: laneWidth,
+          spacing,
+          isLadder: false
+        }));
+      }
+
+      function rebuildLadderChoices() {
+        ladderChoices.replaceChildren();
+
+        if (!lanesConfirmed || !lanes.length) {
+          const note = document.createElement("span");
+          note.className = "panel-note";
+          note.textContent = "確認 lanes 後可選擇";
+          ladderChoices.appendChild(note);
+          return;
+        }
+
+        lanes.forEach((lane, index) => {
+          const label = document.createElement("label");
+          label.className = "lane-check";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = Boolean(lane.isLadder);
+          checkbox.dataset.laneIndex = String(index);
+
+          const text = document.createElement("span");
+          text.textContent = `L${index + 1}`;
+
+          checkbox.addEventListener("change", () => {
+            lane.isLadder = checkbox.checked;
+            clearBandMetrics();
+            updateAnalysisControls();
+            drawOverlay();
+
+            if (hasCalculatedResults) {
+              scheduleResultRecalculation();
+            }
+          });
+
+          label.append(checkbox, text);
+          ladderChoices.appendChild(label);
+        });
+      }
+
+      function clearBandData(redraw = true) {
+        bands = [];
+        draggedBand = null;
+        hasRunBandDetection = false;
+        resultsValid = false;
+        clearBandsBtn.disabled = true;
+        invalidateBandDetectionCache();
+
+        if (redraw) {
+          drawOverlay();
+        }
+      }
+
+      function clearLaneAnalysis(redraw = true) {
+        laneRange = null;
+        lanes = [];
+        lanesConfirmed = false;
+        clearBandData(false);
+        hasCalculatedResults = false;
+        hideAnalysisMessages();
+        rebuildLadderChoices();
+        updateAnalysisControls();
+
+        if (redraw) {
+          drawOverlay();
+        }
+      }
+
+
+      function deepClone(value) {
+        return value == null
+          ? value
+          : JSON.parse(JSON.stringify(value));
+      }
+
+      function fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.addEventListener("load", () => {
+            resolve(String(reader.result));
+          });
+
+          reader.addEventListener("error", () => {
+            reject(
+              reader.error ||
+              new Error("無法把原始圖片寫入專案。")
+            );
+          });
+
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function dataUrlToBlob(dataUrl) {
+        const commaIndex = dataUrl.indexOf(",");
+
+        if (
+          !dataUrl.startsWith("data:") ||
+          commaIndex < 0
+        ) {
+          throw new Error(
+            "專案內的圖片資料格式不正確。"
+          );
+        }
+
+        const header = dataUrl.slice(0, commaIndex);
+        const payload = dataUrl.slice(commaIndex + 1);
+        const mimeMatch = /^data:([^;,]+)/.exec(header);
+        const mimeType = mimeMatch
+          ? mimeMatch[1]
+          : "application/octet-stream";
+        const isBase64 = /;base64/i.test(header);
+
+        let bytes;
+
+        if (isBase64) {
+          const binary = atob(payload);
+          bytes = new Uint8Array(binary.length);
+
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+        } else {
+          bytes = new TextEncoder().encode(
+            decodeURIComponent(payload)
+          );
+        }
+
+        return new Blob([bytes], {
+          type: mimeType
+        });
+      }
+
+      function projectBaseName(fileName) {
+        const name = String(fileName || "gel_project");
+        const stripped = name.replace(/\.[^./\\]+$/, "");
+        return stripped || "gel_project";
+      }
+
+      async function computeFileSha256(file) {
+        if (
+          !file ||
+          !file.arrayBuffer ||
+          !globalThis.crypto?.subtle
+        ) {
+          return null;
+        }
+
+        try {
+          const buffer = await file.arrayBuffer();
+          const digest = await crypto.subtle.digest(
+            "SHA-256",
+            buffer
+          );
+
+          return Array.from(new Uint8Array(digest))
+            .map(value => value.toString(16).padStart(2, "0"))
+            .join("");
+        } catch (error) {
+          console.warn("SHA-256 calculation failed:", error);
+          return null;
+        }
+      }
+
+      async function buildOriginalFileMeta(file, bitmap) {
+        return {
+          name: file.name,
+          size: file.size,
+          lastModified: file.lastModified,
+          type: file.type || "",
+          width: bitmap.width,
+          height: bitmap.height,
+          sha256: await computeFileSha256(file)
+        };
+      }
+
+      function initializeWorkingCanvasFromOriginal() {
+        workingCanvas = document.createElement("canvas");
+        workingCanvas.width = originalBitmap.width;
+        workingCanvas.height = originalBitmap.height;
+        workingCanvas
+          .getContext("2d")
+          .drawImage(originalBitmap, 0, 0);
+      }
+
+      function applyAdjustmentOperation(operation, preparedSource = null) {
+        const source = preparedSource || (
+          operation.flatField?.enabled
+            ? buildFlatFieldCorrectedCanvas(workingCanvas, operation.flatField)
+            : workingCanvas
+        );
+        const adjusted = document.createElement("canvas");
+        adjusted.width = workingCanvas.width;
+        adjusted.height = workingCanvas.height;
+
+        const ctx = adjusted.getContext("2d");
+        ctx.save();
+        ctx.filter = buildAdjustmentFilter(
+          operation.brightness,
+          operation.contrast,
+          operation.grayscale
+        );
+        ctx.drawImage(source, 0, 0);
+        ctx.restore();
+
+        workingCanvas = adjusted;
+      }
+
+      function replayImageOperations(operations) {
+        initializeWorkingCanvasFromOriginal();
+
+        for (const operation of operations || []) {
+          if (
+            operation?.type === "rotate" &&
+            Number.isFinite(Number(operation.angleDegrees))
+          ) {
+            rotateWorkingImage(Number(operation.angleDegrees));
+          } else if (
+            operation?.type === "crop" &&
+            operation.rect
+          ) {
+            cropWorkingImage(operation.rect);
+          } else if (operation?.type === "adjust") {
+            applyAdjustmentOperation(operation);
+          }
+        }
+      }
+
+      function getAnalysisNoticeForProject() {
+        if (analysisWarnings.hidden) {
+          return {
+            hidden: true,
+            severity: "warning",
+            text: ""
+          };
+        }
+
+        return {
+          hidden: false,
+          severity: analysisWarnings.classList.contains("error")
+            ? "error"
+            : analysisWarnings.classList.contains("success")
+              ? "success"
+              : "warning",
+          text: analysisWarnings.textContent.trim()
+        };
+      }
+
+      function buildProjectData() {
+        return {
+          format: "GelAnalyzerProject",
+          version: 3,
+          savedAt: new Date().toISOString(),
+          image: {
+            original: deepClone(originalFileMeta),
+            embeddedDataUrl: originalImageDataUrl,
+            processedWidth: workingCanvas.width,
+            processedHeight: workingCanvas.height,
+            operations: deepClone(imageOperations),
+            pendingAdjustments: {
+              brightness: Number(brightnessInput.value),
+              contrast: Number(contrastInput.value),
+              grayscale: grayscaleInput.checked,
+              flatField: getFlatFieldOptions()
+            }
+          },
+          analysis: {
+            laneCount: laneCountCommitted,
+            laneRange: deepClone(laneRange),
+            lanesConfirmed,
+            lanes: deepClone(lanes),
+            bands: deepClone(bands),
+            nextBandId,
+            hasRunBandDetection,
+            bandSensitivity: Number(
+              bandSensitivityInput.value
+            ),
+            autoUpdateBands: autoUpdateBandsInput.checked,
+            intensitySource: intensitySourceSelect.value,
+            profileLane: profileSelectedLane,
+            showWeakPeaks: showWeakPeaksInput.checked,
+            ladderSizesText: ladderSizesInput.value,
+            sizeMethod: sizeMethodSelect.value,
+            bandLabelMode: bandLabelModeSelect.value,
+            showBandMarkers: showBandMarkersInput.checked,
+            hasCalculatedResults,
+            resultsValid,
+            notice: getAnalysisNoticeForProject()
+          }
+        };
+      }
+
+      function downloadProjectFile() {
+        if (
+          !originalBitmap ||
+          !originalFileMeta ||
+          !originalImageDataUrl
+        ) {
+          alert(
+            "目前缺少可內嵌的原始圖片資料，請重新載入原始圖片後再儲存完整專案。"
+          );
+          return;
+        }
+
+        const project = buildProjectData();
+        const blob = new Blob(
+          [JSON.stringify(project, null, 2)],
+          {
+            type: "application/json;charset=utf-8"
+          }
+        );
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download =
+          `${projectBaseName(originalFileMeta.name)}.gelproj`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        const approximateMb =
+          blob.size / 1024 / 1024;
+
+        setStatus(
+          `完整專案已儲存：${anchor.download}（${approximateMb.toFixed(1)} MB，包含原圖）`
+        );
+      }
+
+      function downloadCurrentImage() {
+        if (!originalBitmap || !imageCanvas.width) return;
+        // Render any slider changes that were still waiting for debounce.
+        clearTimeout(flatFieldPreviewTimer);
+        renderAdjustedPreview();
+        imageCanvas.toBlob(blob => {
+          if (!blob) {
+            setStatus("無法匯出 PNG：影像編碼失敗");
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.download = `${projectBaseName(originalFileMeta.name)}_gel_processed.png`;
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          setStatus(`已匯出顯示影像：${anchor.download}（不包含 band 標記）`);
+        }, "image/png");
+      }
+
+      function validateProjectStructure(project) {
+        if (
+          !project ||
+          project.format !== "GelAnalyzerProject"
+        ) {
+          throw new Error(
+            "這不是 Gel Analyzer 的 .gelproj 專案檔。"
+          );
+        }
+
+        if (![1, 2, 3].includes(project.version)) {
+          throw new Error(
+            `不支援此專案版本：${project.version}`
+          );
+        }
+
+        if (!project.image?.original) {
+          throw new Error(
+            "專案內缺少原始圖片資訊。"
+          );
+        }
+
+        if (!Array.isArray(project.image.operations)) {
+          throw new Error(
+            "專案內的影像處理紀錄格式不正確。"
+          );
+        }
+
+        if (!project.analysis) {
+          throw new Error(
+            "專案內缺少分析資料。"
+          );
+        }
+
+        if (
+          project.version >= 2 &&
+          (
+            typeof project.image.embeddedDataUrl !== "string" ||
+            !project.image.embeddedDataUrl.startsWith("data:")
+          )
+        ) {
+          throw new Error(
+            "完整專案缺少內嵌的原始圖片資料。"
+          );
+        }
+
+        return project;
+      }
+
+      function currentImageMatchesProject(project) {
+        const expected = project.image.original;
+
+        if (!originalBitmap || !originalFileMeta) {
+          return false;
+        }
+
+        if (
+          originalBitmap.width !== expected.width ||
+          originalBitmap.height !== expected.height
+        ) {
+          return false;
+        }
+
+        if (
+          expected.sha256 &&
+          originalFileMeta.sha256
+        ) {
+          return expected.sha256 === originalFileMeta.sha256;
+        }
+
+        return (
+          originalFileMeta.name === expected.name &&
+          (
+            !Number.isFinite(Number(expected.size)) ||
+            Number(expected.size) === Number(originalFileMeta.size)
+          )
+        );
+      }
+
+      function getImageMismatchMessages(project, meta) {
+        const expected = project.image.original;
+        const messages = [];
+
+        if (meta.name !== expected.name) {
+          messages.push(
+            `檔名不同：專案預期「${expected.name}」，目前為「${meta.name}」`
+          );
+        }
+
+        if (
+          meta.width !== expected.width ||
+          meta.height !== expected.height
+        ) {
+          messages.push(
+            `像素尺寸不同：專案預期 ${expected.width} × ${expected.height}，` +
+            `目前為 ${meta.width} × ${meta.height}`
+          );
+        }
+
+        if (
+          expected.sha256 &&
+          meta.sha256 &&
+          expected.sha256 !== meta.sha256
+        ) {
+          messages.push(
+            "SHA-256 不一致，表示圖片內容不是建立此專案時使用的原圖。"
+          );
+        }
+
+        return messages;
+      }
+
+      function restoreAnalysisNotice(notice) {
+        if (!notice || notice.hidden || !notice.text) {
+          hideAnalysisMessages();
+          return;
+        }
+
+        showAnalysisMessages(
+          notice.text,
+          notice.severity || "warning"
+        );
+      }
+
+      function restoreProjectState(project) {
+        const savedImage = project.image;
+        const savedAnalysis = project.analysis;
+
+        imageOperations = deepClone(
+          savedImage.operations || []
+        );
+        replayImageOperations(imageOperations);
+
+        brightnessInput.value = String(
+          savedImage.pendingAdjustments?.brightness ?? 0
+        );
+        contrastInput.value = String(
+          savedImage.pendingAdjustments?.contrast ?? 0
+        );
+        grayscaleInput.checked = Boolean(
+          savedImage.pendingAdjustments?.grayscale
+        );
+        flatFieldInput.checked = Boolean(
+          savedImage.pendingAdjustments?.flatField?.enabled
+        );
+        flatFieldRadiusInput.value = String(clamp(
+          Number(savedImage.pendingAdjustments?.flatField?.radius) || 100,
+          20, 300
+        ));
+        flatFieldStrengthInput.value = String(clamp(
+          Number(savedImage.pendingAdjustments?.flatField?.strength ?? 100),
+          0, 100
+        ));
+        flatFieldEqualizeInput.checked = Boolean(
+          savedImage.pendingAdjustments?.flatField?.equalize
+        );
+
+        laneCountCommitted = Math.max(
+          2,
+          Math.min(
+            96,
+            Math.round(
+              Number(savedAnalysis.laneCount) || 24
+            )
+          )
+        );
+        laneCountInput.value = String(
+          laneCountCommitted
+        );
+
+        laneRange = deepClone(
+          savedAnalysis.laneRange || null
+        );
+        lanesConfirmed = Boolean(
+          savedAnalysis.lanesConfirmed
+        );
+        lanes = Array.isArray(savedAnalysis.lanes)
+          ? deepClone(savedAnalysis.lanes)
+          : [];
+        bands = Array.isArray(savedAnalysis.bands)
+          ? deepClone(savedAnalysis.bands)
+          : [];
+
+        nextBandId = Math.max(
+          Number(savedAnalysis.nextBandId) || 1,
+          ...bands.map(band => Number(band.id) + 1 || 1)
+        );
+        hasRunBandDetection = Boolean(
+          savedAnalysis.hasRunBandDetection
+        );
+        bandSensitivityInput.value = String(
+          Number(savedAnalysis.bandSensitivity) || 58
+        );
+        bandSensitivityValue.textContent =
+          bandSensitivityInput.value;
+        autoUpdateBandsInput.checked = Boolean(
+          savedAnalysis.autoUpdateBands
+        );
+        intensitySourceSelect.value = savedAnalysis.intensitySource === "display"
+          ? "display" : "raw";
+        profileSelectedLane = Math.max(0, Math.min(lanes.length - 1,
+          Math.round(Number(savedAnalysis.profileLane) || 0)));
+        showWeakPeaksInput.checked = savedAnalysis.showWeakPeaks !== false;
+
+        ladderSizesInput.value =
+          savedAnalysis.ladderSizesText || "";
+        sizeMethodSelect.value =
+          savedAnalysis.sizeMethod === "local"
+            ? "local"
+            : "semilog";
+        bandLabelModeSelect.value = [
+          "none",
+          "size",
+          "brightness",
+          "both"
+        ].includes(savedAnalysis.bandLabelMode)
+          ? savedAnalysis.bandLabelMode
+          : "both";
+        showBandMarkersInput.checked =
+          savedAnalysis.showBandMarkers !== false;
+
+        hasCalculatedResults = Boolean(
+          savedAnalysis.hasCalculatedResults
+        );
+        resultsValid = Boolean(
+          savedAnalysis.resultsValid
+        );
+
+        guideLine = null;
+        cropRect = null;
+        draggedBand = null;
+        invalidateBandDetectionCache();
+
+        emptyState.hidden = true;
+        canvasWrap.hidden = false;
+
+        updateAdjustmentReadouts();
+        updateLadderSizeSummary();
+        rebuildLadderChoices();
+        enableControls(true);
+        syncVisibleCanvasFromWorking();
+        updateAnalysisControls();
+        restoreAnalysisNotice(savedAnalysis.notice);
+        setMode("none");
+        // Recalculate to avoid trusting old/stale pre-v3 intensity fields.
+        if (hasCalculatedResults && bands.length) {
+          calculateBandResults({ silent: true });
+        }
+        scheduleProfileRender();
+
+        const expectedWidth =
+          Number(savedImage.processedWidth);
+        const expectedHeight =
+          Number(savedImage.processedHeight);
+
+        if (
+          Number.isFinite(expectedWidth) &&
+          Number.isFinite(expectedHeight) &&
+          (
+            workingCanvas.width !== expectedWidth ||
+            workingCanvas.height !== expectedHeight
+          )
+        ) {
+          showAnalysisMessages(
+            `專案已載入，但重建後影像尺寸為 ` +
+            `${workingCanvas.width} × ${workingCanvas.height}，` +
+            `與專案記錄的 ${expectedWidth} × ${expectedHeight} 不同。` +
+            "請確認使用的是原始圖檔及相同瀏覽器環境。",
+            "warning"
+          );
+        }
+
+        imageLoadLabel.textContent = "載入電泳圖";
+        imageLoadLabel.classList.remove("awaiting-image");
+        pendingProject = null;
+
+        setStatus(
+          `專案已恢復：${projectBaseName(originalFileMeta.name)}.gelproj；` +
+          `${lanes.length} lanes、${bands.length} bands`
+        );
+      }
+
+      async function restoreProjectFromEmbeddedImage(
+        project
+      ) {
+        try {
+          setStatus(
+            "正在從專案內恢復原始圖片與分析資料……"
+          );
+
+          const blob = dataUrlToBlob(
+            project.image.embeddedDataUrl
+          );
+          const bitmap = await createImageBitmap(blob);
+          const expected = project.image.original;
+
+          if (
+            bitmap.width !== expected.width ||
+            bitmap.height !== expected.height
+          ) {
+            throw new Error(
+              `內嵌圖片尺寸為 ${bitmap.width} × ${bitmap.height}，` +
+              `但專案記錄為 ${expected.width} × ${expected.height}。`
+            );
+          }
+
+          originalBitmap?.close?.();
+          originalBitmap = bitmap;
+          originalFileMeta = deepClone(expected);
+          originalImageDataUrl =
+            project.image.embeddedDataUrl;
+
+          restoreProjectState(project);
+        } catch (error) {
+          console.error(error);
+          pendingProject = null;
+          imageLoadLabel.textContent =
+            "載入電泳圖";
+          imageLoadLabel.classList.remove(
+            "awaiting-image"
+          );
+
+          alert(
+            `無法從完整專案恢復圖片：${error.message}`
+          );
+        }
+      }
+
+      async function restorePendingProjectWithImage(file) {
+        if (!pendingProject || !file) return;
+
+        try {
+          setStatus("正在驗證原始圖檔並恢復專案……");
+
+          const bitmap = await createImageBitmap(file);
+          const meta = await buildOriginalFileMeta(
+            file,
+            bitmap
+          );
+          const mismatches = getImageMismatchMessages(
+            pendingProject,
+            meta
+          );
+
+          if (mismatches.length) {
+            const proceed = confirm(
+              "選擇的圖片與專案記錄不完全一致：\n\n" +
+              mismatches.join("\n") +
+              "\n\n仍要嘗試載入嗎？"
+            );
+
+            if (!proceed) {
+              bitmap.close?.();
+              setStatus(
+                `請選擇專案原圖：${pendingProject.image.original.name}`
+              );
+              return;
+            }
+          }
+
+          originalBitmap?.close?.();
+          originalBitmap = bitmap;
+          originalFileMeta = meta;
+          originalImageDataUrl =
+            await fileToDataUrl(file);
+          restoreProjectState(pendingProject);
+        } catch (error) {
+          console.error(error);
+          alert(
+            `無法使用此圖片恢復專案：${error.message}`
+          );
+        } finally {
+          fileInput.value = "";
+        }
+      }
+
+      async function readProjectFile(file) {
+        if (!file) return;
+
+        try {
+          const project = validateProjectStructure(
+            JSON.parse(await file.text())
+          );
+          pendingProject = project;
+
+          if (
+            typeof project.image.embeddedDataUrl === "string" &&
+            project.image.embeddedDataUrl.startsWith("data:")
+          ) {
+            await restoreProjectFromEmbeddedImage(
+              project
+            );
+          } else if (
+            currentImageMatchesProject(project)
+          ) {
+            restoreProjectState(project);
+          } else {
+            imageLoadLabel.textContent =
+              `選擇原圖：${project.image.original.name}`;
+            imageLoadLabel.classList.add(
+              "awaiting-image"
+            );
+            setStatus(
+              `這是舊版輕量專案。請選擇原始圖檔「${project.image.original.name}」。`
+            );
+          }
+        } catch (error) {
+          console.error(error);
+          pendingProject = null;
+          imageLoadLabel.textContent = "載入電泳圖";
+          imageLoadLabel.classList.remove("awaiting-image");
+          alert(`無法載入專案：${error.message}`);
+        } finally {
+          projectInput.value = "";
+        }
+      }
+
+      async function loadImageFile(file) {
+        if (!file) return;
+
+        if (pendingProject) {
+          await restorePendingProjectWithImage(file);
+          return;
+        }
+
+        try {
+          setStatus("正在載入圖片並建立專案識別資訊……");
+
+          const bitmap = await createImageBitmap(file);
+          const [meta, dataUrl] = await Promise.all([
+            buildOriginalFileMeta(file, bitmap),
+            fileToDataUrl(file)
+          ]);
+
+          originalBitmap?.close?.();
+          originalBitmap = bitmap;
+          originalFileMeta = meta;
+          originalImageDataUrl = dataUrl;
+          imageOperations = [];
+          intensitySourceSelect.value = "raw";
+          profileSelectedLane = 0;
+          showWeakPeaksInput.checked = true;
+
+          initializeWorkingCanvasFromOriginal();
+
+          guideLine = null;
+          cropRect = null;
+          rotateBtn.disabled = true;
+          cropBtn.disabled = true;
+          resetPendingAdjustments(false);
+          clearLaneAnalysis(false);
+          invalidateBandDetectionCache();
+
+          emptyState.hidden = true;
+          canvasWrap.hidden = false;
+          imageLoadLabel.textContent = "載入電泳圖";
+          imageLoadLabel.classList.remove("awaiting-image");
+          enableControls(true);
+          syncVisibleCanvasFromWorking();
+          setMode("line");
+
+          setStatus(
+            `已載入：${file.name}（${bitmap.width} × ${bitmap.height} px）`
+          );
+        } catch (error) {
+          console.error(error);
+          alert(
+            "無法讀取這張圖片。請改用 JPG、PNG 或瀏覽器支援的格式。"
+          );
+        } finally {
+          fileInput.value = "";
+        }
+      }
+
+      function getCanvasPoint(event) {
+        const rect = overlayCanvas.getBoundingClientRect();
+        const scaleX = overlayCanvas.width / rect.width;
+        const scaleY = overlayCanvas.height / rect.height;
+
+        return {
+          x: Math.max(
+            0,
+            Math.min(
+              overlayCanvas.width,
+              (event.clientX - rect.left) * scaleX
+            )
+          ),
+          y: Math.max(
+            0,
+            Math.min(
+              overlayCanvas.height,
+              (event.clientY - rect.top) * scaleY
+            )
+          )
+        };
+      }
+
+      function normalizeRect(a, b) {
+        const x = Math.min(a.x, b.x);
+        const y = Math.min(a.y, b.y);
+        const width = Math.abs(b.x - a.x);
+        const height = Math.abs(b.y - a.y);
+        return { x, y, width, height };
+      }
+
+      function drawHandle(ctx, x, y, color) {
+        const radius = Math.max(5, overlayCanvas.width / 350);
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = Math.max(1, overlayCanvas.width / 1200);
+        ctx.strokeStyle = "#ffffff";
+        ctx.stroke();
+      }
+
+      function drawLaneGuides() {
+        if (!laneRange) return;
+
+        const geometry = lanesConfirmed ? lanes : getLaneGeometry();
+        if (!geometry.length) return;
+
+        const lineWidth = Math.max(1.5, overlayCanvas.width / 900);
+        const labelFont = Math.max(12, overlayCanvas.width / 115);
+
+        overlayCtx.save();
+
+        geometry.forEach((lane, index) => {
+          const isLadder = lanesConfirmed && lane.isLadder;
+
+          const isSelected = lanesConfirmed && index === profileSelectedLane;
+          if (isSelected) {
+            overlayCtx.fillStyle = "rgba(126,224,129,.065)";
+            overlayCtx.fillRect(lane.x - lane.width * 0.5, 0,
+              lane.width, overlayCanvas.height);
+          }
+          overlayCtx.strokeStyle = isSelected
+            ? "rgba(126,224,129,.97)"
+            : isLadder
+            ? "rgba(255,209,102,.95)"
+            : lanesConfirmed
+              ? "rgba(80,183,255,.80)"
+              : "rgba(80,183,255,.58)";
+          overlayCtx.lineWidth = isSelected ? lineWidth * 1.5 : lineWidth;
+          overlayCtx.setLineDash(
+            lanesConfirmed
+              ? []
+              : [
+                  Math.max(7, overlayCanvas.width / 180),
+                  Math.max(5, overlayCanvas.width / 240)
+                ]
+          );
+          overlayCtx.beginPath();
+          overlayCtx.moveTo(lane.x, 0);
+          overlayCtx.lineTo(lane.x, overlayCanvas.height);
+          overlayCtx.stroke();
+
+          overlayCtx.setLineDash([]);
+          overlayCtx.font = `${labelFont}px system-ui`;
+          overlayCtx.textAlign = "center";
+          overlayCtx.textBaseline = "top";
+
+          const label = isLadder ? `L${index + 1} M` : `L${index + 1}`;
+          overlayCtx.strokeStyle = "rgba(0,0,0,.85)";
+          overlayCtx.lineWidth = Math.max(3, overlayCanvas.width / 600);
+          overlayCtx.strokeText(label, lane.x, 5);
+          overlayCtx.fillStyle = isSelected ? "#7ee081" : (isLadder ? "#ffd166" : "#d9f1ff");
+          overlayCtx.fillText(label, lane.x, 5);
+        });
+
+        if (!lanesConfirmed || mode === "lane-range") {
+          const y = laneRange.y;
+          const left = Math.min(laneRange.startX, laneRange.endX);
+          const right = Math.max(laneRange.startX, laneRange.endX);
+
+          overlayCtx.strokeStyle = "#50b7ff";
+          overlayCtx.lineWidth = Math.max(2, overlayCanvas.width / 700);
+          overlayCtx.setLineDash([
+            Math.max(10, overlayCanvas.width / 120),
+            Math.max(7, overlayCanvas.width / 170)
+          ]);
+          overlayCtx.beginPath();
+          overlayCtx.moveTo(left, y);
+          overlayCtx.lineTo(right, y);
+          overlayCtx.stroke();
+          overlayCtx.setLineDash([]);
+
+          drawHandle(overlayCtx, left, y, "#50b7ff");
+          drawHandle(overlayCtx, right, y, "#50b7ff");
+        }
+
+        overlayCtx.restore();
+      }
+
+      function formatBandLabel(band) {
+        const modeValue = bandLabelModeSelect.value;
+        const parts = [];
+
+        if (modeValue === "size" || modeValue === "both") {
+          if (Number.isFinite(band.bp)) {
+            parts.push(`${bpFormatter.format(Math.round(band.bp))} bp`);
+          } else if (resultsValid) {
+            parts.push("size: —");
+          }
+        }
+
+        if (modeValue === "brightness" || modeValue === "both") {
+          if (Number.isFinite(band.relativeIntensity)) {
+            parts.push(`${Math.round(band.relativeIntensity)}%`);
+          } else if (resultsValid) {
+            parts.push("int.: —");
+          }
+        }
+
+        if (band.saturated) {
+          parts.push("SAT");
+        }
+
+        return parts.join(" · ");
+      }
+
+      function drawBandLabel(band, lane, color) {
+        const label = formatBandLabel(band);
+        if (!label) return;
+
+        const fontSize = Math.max(11, overlayCanvas.width / 145);
+        const paddingX = Math.max(3, fontSize * 0.28);
+        const paddingY = Math.max(2, fontSize * 0.18);
+
+        overlayCtx.font = `${fontSize}px system-ui`;
+        overlayCtx.textBaseline = "middle";
+
+        const textWidth = overlayCtx.measureText(label).width;
+        const placeRight =
+          lane.x + lane.width * 0.45 + textWidth + paddingX * 2 <
+          overlayCanvas.width;
+
+        const boxX = placeRight
+          ? lane.x + lane.width * 0.37 + 4
+          : lane.x - lane.width * 0.37 - 4 - textWidth - paddingX * 2;
+        const boxY = Math.max(
+          0,
+          Math.min(
+            overlayCanvas.height - fontSize - paddingY * 2,
+            band.y - fontSize / 2 - paddingY
+          )
+        );
+
+        overlayCtx.fillStyle = "rgba(0,0,0,.72)";
+        overlayCtx.fillRect(
+          boxX,
+          boxY,
+          textWidth + paddingX * 2,
+          fontSize + paddingY * 2
+        );
+
+        overlayCtx.fillStyle = band.saturated ? "#ffb4a8" : color;
+        overlayCtx.textAlign = "left";
+        overlayCtx.fillText(
+          label,
+          boxX + paddingX,
+          boxY + paddingY + fontSize / 2
+        );
+      }
+
+      function drawBands() {
+        if (!bands.length || !lanesConfirmed) return;
+
+        const showMarkers = showBandMarkersInput.checked;
+        const showLabels = bandLabelModeSelect.value !== "none";
+
+        if (!showMarkers && !showLabels) return;
+
+        const radius = Math.max(4.5, overlayCanvas.width / 390);
+        const strokeWidth = Math.max(1.5, overlayCanvas.width / 1000);
+
+        overlayCtx.save();
+
+        bands.forEach(band => {
+          const lane = lanes[band.laneIndex];
+          if (!lane) return;
+
+          const color = lane.isLadder ? "#ffd166" : "#7ee081";
+          const halfLine = Math.max(5, lane.width * 0.34);
+
+          if (showMarkers) {
+            overlayCtx.strokeStyle = color;
+            overlayCtx.lineWidth = strokeWidth;
+            overlayCtx.beginPath();
+            overlayCtx.moveTo(lane.x - halfLine, band.y);
+            overlayCtx.lineTo(lane.x + halfLine, band.y);
+            overlayCtx.stroke();
+
+            overlayCtx.beginPath();
+            overlayCtx.arc(lane.x, band.y, radius, 0, Math.PI * 2);
+            overlayCtx.fillStyle =
+              band === draggedBand ? "#ffffff" : color;
+            overlayCtx.fill();
+            overlayCtx.strokeStyle = "rgba(0,0,0,.88)";
+            overlayCtx.lineWidth = Math.max(1.5, strokeWidth);
+            overlayCtx.stroke();
+          }
+
+          if (showLabels) {
+            drawBandLabel(band, lane, color);
+          }
+        });
+
+        overlayCtx.restore();
+      }
+
+      function drawOverlay() {
+        overlayCtx.clearRect(
+          0,
+          0,
+          overlayCanvas.width,
+          overlayCanvas.height
+        );
+
+        const lineWidth = Math.max(2, overlayCanvas.width / 700);
+
+        if (guideLine) {
+          overlayCtx.save();
+          overlayCtx.strokeStyle = "#ff6262";
+          overlayCtx.lineWidth = lineWidth;
+          overlayCtx.setLineDash([
+            Math.max(10, overlayCanvas.width / 120),
+            Math.max(7, overlayCanvas.width / 170)
+          ]);
+          overlayCtx.beginPath();
+          overlayCtx.moveTo(guideLine.start.x, guideLine.start.y);
+          overlayCtx.lineTo(guideLine.end.x, guideLine.end.y);
+          overlayCtx.stroke();
+          overlayCtx.setLineDash([]);
+
+          drawHandle(
+            overlayCtx,
+            guideLine.start.x,
+            guideLine.start.y,
+            "#ff6262"
+          );
+          drawHandle(
+            overlayCtx,
+            guideLine.end.x,
+            guideLine.end.y,
+            "#ff6262"
+          );
+
+          const angle = normalizedLineAngleDegrees(
+            guideLine.start,
+            guideLine.end
+          );
+          const midX = (guideLine.start.x + guideLine.end.x) / 2;
+          const midY = (guideLine.start.y + guideLine.end.y) / 2;
+
+          overlayCtx.font =
+            `${Math.max(14, overlayCanvas.width / 90)}px system-ui`;
+          overlayCtx.fillStyle = "#ffffff";
+          overlayCtx.strokeStyle = "rgba(0,0,0,.8)";
+          overlayCtx.lineWidth = Math.max(
+            3,
+            overlayCanvas.width / 500
+          );
+
+          const text = `${angle.toFixed(2)}°`;
+          overlayCtx.strokeText(text, midX + 10, midY - 10);
+          overlayCtx.fillText(text, midX + 10, midY - 10);
+          overlayCtx.restore();
+        }
+
+        if (cropRect) {
+          overlayCtx.save();
+
+          overlayCtx.fillStyle = "rgba(0,0,0,.42)";
+          overlayCtx.fillRect(
+            0,
+            0,
+            overlayCanvas.width,
+            cropRect.y
+          );
+          overlayCtx.fillRect(
+            0,
+            cropRect.y + cropRect.height,
+            overlayCanvas.width,
+            overlayCanvas.height - cropRect.y - cropRect.height
+          );
+          overlayCtx.fillRect(
+            0,
+            cropRect.y,
+            cropRect.x,
+            cropRect.height
+          );
+          overlayCtx.fillRect(
+            cropRect.x + cropRect.width,
+            cropRect.y,
+            overlayCanvas.width - cropRect.x - cropRect.width,
+            cropRect.height
+          );
+
+          overlayCtx.strokeStyle = "#ffd166";
+          overlayCtx.lineWidth = lineWidth;
+          overlayCtx.setLineDash([
+            Math.max(10, overlayCanvas.width / 120),
+            Math.max(7, overlayCanvas.width / 170)
+          ]);
+          overlayCtx.strokeRect(
+            cropRect.x,
+            cropRect.y,
+            cropRect.width,
+            cropRect.height
+          );
+          overlayCtx.setLineDash([]);
+
+          overlayCtx.font =
+            `${Math.max(14, overlayCanvas.width / 90)}px system-ui`;
+          overlayCtx.fillStyle = "#ffffff";
+          overlayCtx.strokeStyle = "rgba(0,0,0,.8)";
+          overlayCtx.lineWidth = Math.max(
+            3,
+            overlayCanvas.width / 500
+          );
+
+          const text =
+            `${Math.round(cropRect.width)} × ` +
+            `${Math.round(cropRect.height)} px`;
+          overlayCtx.strokeText(
+            text,
+            cropRect.x + 8,
+            Math.max(20, cropRect.y - 10)
+          );
+          overlayCtx.fillText(
+            text,
+            cropRect.x + 8,
+            Math.max(20, cropRect.y - 10)
+          );
+
+          overlayCtx.restore();
+        }
+
+        drawLaneGuides();
+        drawBands();
+        scheduleProfileRender();
+      }
+
+      function normalizedLineAngleDegrees(start, end) {
+        let angle =
+          Math.atan2(end.y - start.y, end.x - start.x) *
+          180 /
+          Math.PI;
+
+        if (angle > 90) angle -= 180;
+        if (angle < -90) angle += 180;
+
+        return angle;
+      }
+
+      function rotateWorkingImage(angleDegrees) {
+        const angleRadians = angleDegrees * Math.PI / 180;
+        const source = workingCanvas;
+        const sourceWidth = source.width;
+        const sourceHeight = source.height;
+
+        const cos = Math.abs(Math.cos(angleRadians));
+        const sin = Math.abs(Math.sin(angleRadians));
+        const outputWidth = Math.ceil(
+          sourceWidth * cos + sourceHeight * sin
+        );
+        const outputHeight = Math.ceil(
+          sourceWidth * sin + sourceHeight * cos
+        );
+
+        const rotated = document.createElement("canvas");
+        rotated.width = outputWidth;
+        rotated.height = outputHeight;
+
+        const ctx = rotated.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.translate(outputWidth / 2, outputHeight / 2);
+        ctx.rotate(angleRadians);
+        ctx.drawImage(
+          source,
+          -sourceWidth / 2,
+          -sourceHeight / 2
+        );
+
+        workingCanvas = rotated;
+      }
+
+      function cropWorkingImage(rect) {
+        const x = Math.max(0, Math.floor(rect.x));
+        const y = Math.max(0, Math.floor(rect.y));
+        const width = Math.min(
+          workingCanvas.width - x,
+          Math.max(1, Math.round(rect.width))
+        );
+        const height = Math.min(
+          workingCanvas.height - y,
+          Math.max(1, Math.round(rect.height))
+        );
+
+        const cropped = document.createElement("canvas");
+        cropped.width = width;
+        cropped.height = height;
+
+        const ctx = cropped.getContext("2d");
+        ctx.drawImage(
+          workingCanvas,
+          x,
+          y,
+          width,
+          height,
+          0,
+          0,
+          width,
+          height
+        );
+
+        workingCanvas = cropped;
+        return { x, y, width, height };
+      }
+
+      // Reconstruct native recorded pixel levels in exactly the same image
+      // coordinates as the working gel, but skip ALL tone/flat-field operations.
+      // No inverse contrast correction is used (clipping cannot be undone).
+      function geometryAlignedOriginalCanvas() {
+        let source = document.createElement("canvas");
+        source.width = originalBitmap.width;
+        source.height = originalBitmap.height;
+        source.getContext("2d").drawImage(originalBitmap, 0, 0);
+        for (const op of imageOperations) {
+          if (op?.type === "rotate") {
+            const radians = Number(op.angleDegrees) * Math.PI / 180;
+            const sw = source.width, sh = source.height;
+            const ow = Math.ceil(sw * Math.abs(Math.cos(radians)) +
+                                 sh * Math.abs(Math.sin(radians)));
+            const oh = Math.ceil(sw * Math.abs(Math.sin(radians)) +
+                                 sh * Math.abs(Math.cos(radians)));
+            const out = document.createElement("canvas");
+            out.width = ow; out.height = oh;
+            const cx = out.getContext("2d");
+            cx.imageSmoothingEnabled = true;
+            cx.imageSmoothingQuality = "high";
+            cx.translate(ow / 2, oh / 2);
+            cx.rotate(radians);
+            cx.drawImage(source, -sw / 2, -sh / 2);
+            source = out;
+          } else if (op?.type === "crop" && op.rect) {
+            const x = Math.max(0, Math.floor(op.rect.x));
+            const y = Math.max(0, Math.floor(op.rect.y));
+            const w = Math.min(source.width - x,
+              Math.max(1, Math.round(op.rect.width)));
+            const h = Math.min(source.height - y,
+              Math.max(1, Math.round(op.rect.height)));
+            const out = document.createElement("canvas");
+            out.width = w; out.height = h;
+            out.getContext("2d").drawImage(source, x, y, w, h, 0, 0, w, h);
+            source = out;
+          }
+        }
+        return source;
+      }
+
+      function ensureRawProfileCache() {
+        if (rawProfileCache &&
+            rawProfileCache.width === imageCanvas.width &&
+            rawProfileCache.height === imageCanvas.height &&
+            rawProfileCache.laneCount === lanes.length) {
+          return rawProfileCache;
+        }
+        const rawCanvas = geometryAlignedOriginalCanvas();
+        if (rawCanvas.width !== imageCanvas.width ||
+            rawCanvas.height !== imageCanvas.height) {
+          throw new Error("原始與處理後影像的幾何座標不一致，無法安全量測。");
+        }
+        const imageData = rawCanvas.getContext("2d", {willReadFrequently:true})
+          .getImageData(0, 0, rawCanvas.width, rawCanvas.height);
+        rawProfileCache = {
+          width:rawCanvas.width, height:rawCanvas.height,
+          laneCount:lanes.length,
+          profiles:lanes.map(lane => prepareLaneProfile(
+            lane, imageData.data, rawCanvas.width, rawCanvas.height))
+        };
+        return rawProfileCache;
+      }
+
+      function hitTestBand(point) {
+        if (!bands.length || !lanesConfirmed) return null;
+
+        const radius = Math.max(
+          9,
+          overlayCanvas.width / 180
+        );
+        let best = null;
+        let bestDistance = Infinity;
+
+        for (const band of bands) {
+          const lane = lanes[band.laneIndex];
+          if (!lane) continue;
+
+          const distance = Math.hypot(
+            point.x - lane.x,
+            point.y - band.y
+          );
+
+          if (distance <= radius && distance < bestDistance) {
+            best = band;
+            bestDistance = distance;
+          }
+        }
+
+        return best;
+      }
+
+      function nearestLaneIndex(x) {
+        if (!lanes.length) return -1;
+
+        let bestIndex = -1;
+        let bestDistance = Infinity;
+
+        lanes.forEach((lane, index) => {
+          const distance = Math.abs(x - lane.x);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = index;
+          }
+        });
+
+        const tolerance =
+          lanes.length > 1
+            ? Math.abs(lanes[1].x - lanes[0].x) * 0.48
+            : lanes[0].width;
+
+        return bestDistance <= tolerance ? bestIndex : -1;
+      }
+
+      function movingAverage(values, radius) {
+        const length = values.length;
+        const prefix = new Float64Array(length + 1);
+
+        for (let i = 0; i < length; i++) {
+          prefix[i + 1] = prefix[i] + values[i];
+        }
+
+        const output = new Float64Array(length);
+
+        for (let i = 0; i < length; i++) {
+          const start = Math.max(0, i - radius);
+          const end = Math.min(length - 1, i + radius);
+          output[i] =
+            (prefix[end + 1] - prefix[start]) /
+            (end - start + 1);
+        }
+
+        return output;
+      }
+
+      function rollingMin(values, radius) {
+        const output = new Float64Array(values.length);
+
+        for (let i = 0; i < values.length; i++) {
+          let minimum = Infinity;
+          const start = Math.max(0, i - radius);
+          const end = Math.min(values.length - 1, i + radius);
+
+          for (let j = start; j <= end; j++) {
+            if (values[j] < minimum) minimum = values[j];
+          }
+
+          output[i] = minimum;
+        }
+
+        return output;
+      }
+
+      function rollingMax(values, radius) {
+        const output = new Float64Array(values.length);
+
+        for (let i = 0; i < values.length; i++) {
+          let maximum = -Infinity;
+          const start = Math.max(0, i - radius);
+          const end = Math.min(values.length - 1, i + radius);
+
+          for (let j = start; j <= end; j++) {
+            if (values[j] > maximum) maximum = values[j];
+          }
+
+          output[i] = maximum;
+        }
+
+        return output;
+      }
+
+      function quantile(values, q) {
+        if (!values.length) return 0;
+
+        const sorted = Array.from(values).sort((a, b) => a - b);
+        const position = (sorted.length - 1) * q;
+        const lower = Math.floor(position);
+        const upper = Math.ceil(position);
+
+        if (lower === upper) return sorted[lower];
+
+        const weight = position - lower;
+        return (
+          sorted[lower] * (1 - weight) +
+          sorted[upper] * weight
+        );
+      }
+
+      function prepareLaneProfile(
+        lane,
+        pixels,
+        width,
+        height
+      ) {
+        const halfWidth = Math.max(
+          2,
+          Math.floor(lane.width * 0.42)
+        );
+        const xStart = Math.max(
+          0,
+          Math.floor(lane.x - halfWidth)
+        );
+        const xEnd = Math.min(
+          width - 1,
+          Math.ceil(lane.x + halfWidth)
+        );
+
+        const profile = new Float64Array(height);
+        const saturationProfile = new Float64Array(height);
+
+        for (let y = 0; y < height; y++) {
+          let sum = 0;
+          let count = 0;
+          let saturatedCount = 0;
+
+          for (let x = xStart; x <= xEnd; x++) {
+            const offset = (y * width + x) * 4;
+            const r = pixels[offset];
+            const g = pixels[offset + 1];
+            const b = pixels[offset + 2];
+            const gray =
+              0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+            sum += gray;
+            count++;
+
+            if (gray >= 250) {
+              saturatedCount++;
+            }
+          }
+
+          profile[y] = count ? sum / count : 0;
+          saturationProfile[y] =
+            count ? saturatedCount / count : 0;
+        }
+
+        const smoothRadius = Math.max(
+          1,
+          Math.round(height * 0.0025)
+        );
+        const smoothed = movingAverage(
+          profile,
+          smoothRadius
+        );
+
+        const backgroundRadius = Math.max(
+          10,
+          Math.round(height * 0.025)
+        );
+        const eroded = rollingMin(
+          smoothed,
+          backgroundRadius
+        );
+        const baseline = rollingMax(
+          eroded,
+          backgroundRadius
+        );
+
+        const residual = new Float64Array(height);
+        const usable = [];
+        const margin = Math.max(
+          2,
+          Math.round(height * 0.006)
+        );
+
+        for (let y = 0; y < height; y++) {
+          residual[y] = Math.max(
+            0,
+            smoothed[y] - baseline[y]
+          );
+
+          if (
+            y >= margin &&
+            y < height - margin &&
+            residual[y] > 0
+          ) {
+            usable.push(residual[y]);
+          }
+        }
+
+        const median = usable.length
+          ? quantile(usable, 0.50)
+          : 0;
+        const high = usable.length
+          ? quantile(usable, 0.985)
+          : 0;
+        const deviations = usable.map(value =>
+          Math.abs(value - median)
+        );
+        const mad = Math.max(
+          0.05,
+          deviations.length
+            ? quantile(deviations, 0.50)
+            : 0.05
+        );
+
+        return {
+          laneIndex: lane.index,
+          xStart,
+          xEnd,
+          residual,
+          saturationProfile,
+          median,
+          high,
+          mad,
+          margin
+        };
+      }
+
+      function getDetectionThreshold(prepared, sensitivity) {
+        const relativeFactor = 0.70 - sensitivity * 0.00555;
+        const noiseMultiplier = 6.1 - sensitivity * 0.046;
+        return Math.max(1.0, prepared.high * relativeFactor,
+          prepared.median + prepared.mad * noiseMultiplier);
+      }
+
+      function detectBandsFromPrepared(
+        prepared,
+        sensitivity,
+        height
+      ) {
+        const {
+          residual,
+          median,
+          high,
+          mad,
+          margin
+        } = prepared;
+
+        const threshold = getDetectionThreshold(prepared, sensitivity);
+
+        const candidates = [];
+        let y = margin;
+
+        while (y < height - margin) {
+          if (residual[y] < threshold) {
+            y++;
+            continue;
+          }
+
+          const regionStart = y;
+          let peakY = y;
+          let peakValue = residual[y];
+
+          while (
+            y < height - margin &&
+            residual[y] >= threshold
+          ) {
+            if (residual[y] > peakValue) {
+              peakValue = residual[y];
+              peakY = y;
+            }
+            y++;
+          }
+
+          const regionEnd = y - 1;
+          candidates.push({
+            y: peakY,
+            strength: peakValue,
+            width: regionEnd - regionStart + 1
+          });
+        }
+
+        const minimumDistance = Math.max(
+          5,
+          Math.round(height * 0.011)
+        );
+        const merged = [];
+
+        candidates
+          .sort((a, b) => a.y - b.y)
+          .forEach(candidate => {
+            const previous = merged[merged.length - 1];
+
+            if (
+              !previous ||
+              candidate.y - previous.y >= minimumDistance
+            ) {
+              merged.push(candidate);
+            } else if (
+              candidate.strength > previous.strength
+            ) {
+              merged[merged.length - 1] = candidate;
+            }
+          });
+
+        return merged.slice(0, 60);
+      }
+
+      function findSubthresholdCandidates(prepared, threshold, currentBands) {
+        const values = prepared.residual;
+        const minimum = Math.max(0.8, threshold * 0.42);
+        const minDistance = Math.max(5, Math.round(values.length * 0.008));
+        const candidates = [];
+        for (let y = prepared.margin + 3; y < values.length - prepared.margin - 3; y++) {
+          const v = values[y];
+          if (v < minimum || v >= threshold) continue;
+          if (v <= values[y-3] || v <= values[y+3] ||
+              v < values[y-1] || v < values[y+1]) continue;
+          if (currentBands.some(b => Math.abs(b.y - y) < minDistance)) continue;
+          const last = candidates.at(-1);
+          if (last && y - last.y < minDistance) {
+            if (v > last.strength) candidates[candidates.length - 1] = {y,strength:v};
+          } else candidates.push({y,strength:v});
+        }
+        return candidates.slice(0, 45);
+      }
+
+      function ensureBandDetectionCache() {
+        if (
+          bandDetectionCache &&
+          bandDetectionCache.width === imageCanvas.width &&
+          bandDetectionCache.height === imageCanvas.height &&
+          bandDetectionCache.laneCount === lanes.length
+        ) {
+          return bandDetectionCache;
+        }
+
+        const width = imageCanvas.width;
+        const height = imageCanvas.height;
+        const imageData = imageCtx.getImageData(
+          0,
+          0,
+          width,
+          height
+        );
+
+        const profiles = lanes.map(lane =>
+          prepareLaneProfile(
+            lane,
+            imageData.data,
+            width,
+            height
+          )
+        );
+
+        bandDetectionCache = {
+          width,
+          height,
+          laneCount: lanes.length,
+          imageData,
+          profiles
+        };
+
+        return bandDetectionCache;
+      }
+
+      function runBandDetection({
+        silent = false,
+        fromLiveSlider = false
+      } = {}) {
+        if (!lanesConfirmed || !lanes.length) return;
+
+        const cache = ensureBandDetectionCache();
+        const sensitivity =
+          Number(bandSensitivityInput.value);
+        const detected = [];
+
+        cache.profiles.forEach((profile, laneIndex) => {
+          const laneBands = detectBandsFromPrepared(
+            profile,
+            sensitivity,
+            cache.height
+          );
+
+          laneBands.forEach(result => {
+            detected.push({
+              id: nextBandId++,
+              laneIndex,
+              y: result.y,
+              strength: result.strength,
+              source: "auto"
+            });
+          });
+        });
+
+        bands = detected;
+        hasRunBandDetection = true;
+        clearBandMetrics();
+        updateAnalysisControls();
+        setMode("none");
+
+        if (hasCalculatedResults) {
+          calculateBandResults({ silent: true });
+        } else {
+          drawOverlay();
+        }
+
+        if (!silent) {
+          setStatus(
+            `自動偵測完成：${bands.length} 個 band 點。` +
+            "請拖曳、右鍵刪除或雙擊新增。"
+          );
+        } else if (fromLiveSlider) {
+          setStatus(
+            `已自動更新：${bands.length} 個 band 點（敏感度 ${sensitivity}）`
+          );
+        }
+      }
+
+      function scheduleLiveBandDetection() {
+        if (
+          !autoUpdateBandsInput.checked ||
+          !hasRunBandDetection ||
+          !lanesConfirmed
+        ) {
+          return;
+        }
+
+        clearTimeout(liveDetectionTimer);
+        liveDetectionTimer = setTimeout(() => {
+          runBandDetection({
+            silent: true,
+            fromLiveSlider: true
+          });
+        }, 110);
+      }
+
+      function syncProfileLaneOptions() {
+        if (profileLaneSelect.options.length !== lanes.length ||
+            (lanes.length && profileLaneSelect.options[0].value !== "0")) {
+          profileLaneSelect.replaceChildren();
+          if (!lanes.length) {
+            profileLaneSelect.add(new Option("請先確認 lanes", "0"));
+          } else lanes.forEach((lane, i) => {
+            profileLaneSelect.add(new Option(`L${i+1}${lane.isLadder ? " (Ladder)" : ""}`, String(i)));
+          });
+        } else if (lanes.length) {
+          lanes.forEach((lane,i) => {
+            const name = `L${i+1}${lane.isLadder ? " (Ladder)" : ""}`;
+            if (profileLaneSelect.options[i].text !== name)
+              profileLaneSelect.options[i].text = name;
+          });
+        }
+        profileSelectedLane = lanes.length
+          ? clamp(profileSelectedLane,0,lanes.length-1) : 0;
+        profileLaneSelect.value = String(profileSelectedLane);
+        scheduleProfileRender();
+      }
+
+      function scheduleProfileRender() {
+        if (profileRenderTimer != null) return;
+        profileRenderTimer = requestAnimationFrame(() => {
+          profileRenderTimer = null;
+          drawLaneProfile();
+        });
+      }
+
+      function drawLaneProfile() {
+        const ctx = profileCtx, W=laneProfileCanvas.width, H=laneProfileCanvas.height;
+        ctx.clearRect(0,0,W,H);
+        ctx.fillStyle = "#0d1115"; ctx.fillRect(0,0,W,H);
+        if (!lanesConfirmed || !lanes.length || !imageCanvas.width) {
+          ctx.font="16px system-ui";ctx.fillStyle="#a8b0b8";
+          ctx.fillText("確認 lanes 後顯示背景扣除訊號",25,H/2);
+          profileSummary.textContent = "確認 lanes 後可檢查各條 lane；點擊剖面圖可新增人工 band。";
+          return;
+        }
+        const profile = ensureBandDetectionCache().profiles[profileSelectedLane];
+        if (!profile) return;
+        const vals=profile.residual, sensitivity=Number(bandSensitivityInput.value);
+        const threshold=getDetectionThreshold(profile,sensitivity);
+        const laneBands=getBandsForLane(profileSelectedLane);
+        const peaks=showWeakPeaksInput.checked ? findSubthresholdCandidates(profile,threshold,laneBands) : [];
+        const maxSignal=Math.max(threshold*1.3, profile.high*1.1,
+          quantile(profile.residual,0.998)*1.03,1);
+        // x-axis = original gel y coordinate; y-axis = residual intensity.
+        const L=38,R=12,T=14,B=30;
+        const plotW=W-L-R, plotH=H-T-B;
+        const fx=y=>L + y/Math.max(1,vals.length-1)*plotW;
+        const fy=v=>T + plotH-clamp(v/maxSignal,0,1)*plotH;
+        ctx.strokeStyle="#25303a";ctx.lineWidth=1;
+        ctx.font="12px system-ui";ctx.fillStyle="#9eaab5";
+        for(let k=0;k<=4;k++){
+          const val=maxSignal*k/4,y=fy(val);
+          ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(W-R,y);ctx.stroke();
+          ctx.textAlign="right";ctx.fillText(val.toFixed(1),L-6,y+4);
+        }
+        for(let k=0;k<=4;k++){
+          const yValue=(vals.length-1)*k/4,x=fx(yValue);
+          ctx.fillStyle="#9eaab5";ctx.textAlign="center";
+          ctx.fillText(`${Math.round(yValue)} px`,x,H-8);
+        }
+        ctx.strokeStyle="#ffd166";ctx.setLineDash([7,5]);ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(L,fy(threshold));ctx.lineTo(W-R,fy(threshold));ctx.stroke();ctx.setLineDash([]);
+        ctx.strokeStyle="#55bcff";ctx.lineWidth=1.7;ctx.beginPath();
+        for(let y=0;y<vals.length;y++){
+          const x=fx(y),v=fy(vals[y]);
+          if(y===0)ctx.moveTo(x,v);else ctx.lineTo(x,v);
+        }
+        ctx.stroke();
+        if(peaks.length){
+          ctx.fillStyle="#ff9a5a";
+          peaks.forEach(p=>{
+            ctx.beginPath();ctx.arc(fx(p.y),fy(p.strength),3.3,0,2*Math.PI);ctx.fill();
+          });
+        }
+        ctx.strokeStyle="#7ee081";ctx.lineWidth=1.5;
+        laneBands.forEach(b=>{
+          const x=fx(b.y);
+          ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T+9);ctx.moveTo(x,H-B-10);ctx.lineTo(x,H-B);ctx.stroke();
+        });
+        profileSummary.textContent = `L${profileSelectedLane+1}：${laneBands.length} 個已標記 band、${peaks.length} 個門檻以下的候選峰（不會自動加入）；門檻 ${threshold.toFixed(2)} a.u.。橫軸對應膠圖 y 座標；點圖新增人工 band。`;
+      }
+
+      function addManualBand(laneIndex,y) {
+        if (!lanesConfirmed || !lanes[laneIndex]) return false;
+        const nearby=bands.some(b=>b.laneIndex===laneIndex && Math.abs(b.y-y)<4);
+        if(nearby){setStatus(`L${laneIndex+1} 在 y=${Math.round(y)} 附近已有 band，未重複新增`);return false;}
+        bands.push({id:nextBandId++,laneIndex,y,strength:null,source:"manual"});
+        bands.sort((a,b)=>a.laneIndex-b.laneIndex||a.y-b.y);
+        clearBandMetrics();updateAnalysisControls();drawOverlay();
+        if(hasCalculatedResults) scheduleResultRecalculation();
+        setStatus(`已手動新增 L${laneIndex+1} band（y=${Math.round(y)} px）；請核對原圖是否有可重現條帶`);
+        return true;
+      }
+
+      laneProfileCanvas.addEventListener("click",event=>{
+        if(!lanesConfirmed || !imageCanvas.height)return;
+        const r=laneProfileCanvas.getBoundingClientRect();
+        const x=(event.clientX-r.left)*laneProfileCanvas.width/r.width;
+        const L=38,R=12;
+        if(x<L||x>laneProfileCanvas.width-R)return;
+        const y=clamp((x-L)/(laneProfileCanvas.width-L-R)*(imageCanvas.height-1),0,imageCanvas.height-1);
+        addManualBand(profileSelectedLane,y);
+      });
+
+      function fitLinearRegression(points) {
+        const n = points.length;
+        if (n < 2) return null;
+
+        let sumX = 0;
+        let sumY = 0;
+        let sumXX = 0;
+        let sumXY = 0;
+
+        points.forEach(point => {
+          sumX += point.x;
+          sumY += point.y;
+          sumXX += point.x * point.x;
+          sumXY += point.x * point.y;
+        });
+
+        const denominator =
+          n * sumXX - sumX * sumX;
+
+        if (Math.abs(denominator) < 1e-12) {
+          return null;
+        }
+
+        const slope =
+          (n * sumXY - sumX * sumY) /
+          denominator;
+        const intercept =
+          (sumY - slope * sumX) / n;
+        const meanY = sumY / n;
+
+        let ssTotal = 0;
+        let ssResidual = 0;
+
+        points.forEach(point => {
+          const predicted =
+            intercept + slope * point.x;
+          ssTotal += (point.y - meanY) ** 2;
+          ssResidual += (point.y - predicted) ** 2;
+        });
+
+        const r2 =
+          ssTotal > 0
+            ? 1 - ssResidual / ssTotal
+            : 1;
+
+        return {
+          slope,
+          intercept,
+          r2
+        };
+      }
+
+      function getBandsForLane(laneIndex) {
+        return bands
+          .filter(band => band.laneIndex === laneIndex)
+          .sort((a, b) => a.y - b.y);
+      }
+
+      function buildLadderCalibrations(sizes) {
+        const selected = getSelectedLadderLanes();
+        const calibrations = [];
+        const warnings = [];
+        const errors = [];
+
+        if (!selected.length) {
+          errors.push("尚未勾選任何 ladder lane。");
+          return { calibrations, warnings, errors };
+        }
+
+        selected.forEach(lane => {
+          const laneBands = getBandsForLane(lane.index);
+
+          if (laneBands.length !== sizes.length) {
+            warnings.push(
+              `L${lane.index + 1} 偵測到 ${laneBands.length} 個 band，` +
+              `但輸入了 ${sizes.length} 個 ladder 片段；本 lane 暫不參與大小校正。`
+            );
+            return;
+          }
+
+          const markers = laneBands.map((band, index) => ({
+            band,
+            y: band.y,
+            bp: sizes[index],
+            logBp: Math.log10(sizes[index])
+          }));
+
+          const model = fitLinearRegression(
+            markers.map(marker => ({
+              x: marker.y,
+              y: marker.logBp
+            }))
+          );
+
+          if (!model || !Number.isFinite(model.slope)) {
+            warnings.push(
+              `L${lane.index + 1} 的半對數模型無法配適。`
+            );
+          } else {
+            if (model.slope >= 0) {
+              warnings.push(
+                `L${lane.index + 1} 的模型斜率不是負值；` +
+                "請確認 ladder 大小順序及 band 對應。"
+              );
+            }
+
+            if (model.r2 < 0.98) {
+              warnings.push(
+                `L${lane.index + 1} 的半對數模型 R²=${model.r2.toFixed(4)}，` +
+                "配適可能不佳。"
+              );
+            }
+          }
+
+          calibrations.push({
+            lane,
+            markers,
+            model,
+            minY: markers[0].y,
+            maxY: markers.at(-1).y
+          });
+        });
+
+        if (!calibrations.length) {
+          errors.push(
+            "沒有任何 ladder lane 的 band 數量與輸入片段數完全一致。"
+          );
+        }
+
+        return { calibrations, warnings, errors };
+      }
+
+      function findNearestCalibration(
+        targetLane,
+        calibrations
+      ) {
+        let best = null;
+        let bestDistance = Infinity;
+
+        calibrations.forEach(calibration => {
+          const distance = Math.abs(
+            targetLane.x - calibration.lane.x
+          );
+
+          if (distance < bestDistance) {
+            best = calibration;
+            bestDistance = distance;
+          }
+        });
+
+        return best;
+      }
+
+      function assignBandIntensities(cache, warnings) {
+        let saturatedBandCount = 0;
+        let zeroSignalLaneCount = 0;
+
+        lanes.forEach((lane, laneIndex) => {
+          const laneBands = getBandsForLane(laneIndex);
+          if (!laneBands.length) return;
+
+          const profile = cache.profiles[laneIndex];
+          if (!profile) return;
+
+          const maxHalfWindow = Math.max(
+            6,
+            Math.round(cache.height * 0.020)
+          );
+
+          laneBands.forEach((band, index) => {
+            const previous = laneBands[index - 1];
+            const next = laneBands[index + 1];
+
+            const previousMid = previous
+              ? Math.floor((previous.y + band.y) / 2)
+              : Math.floor(band.y - maxHalfWindow);
+            const nextMid = next
+              ? Math.ceil((band.y + next.y) / 2)
+              : Math.ceil(band.y + maxHalfWindow);
+
+            const start = Math.max(
+              0,
+              Math.floor(band.y - maxHalfWindow),
+              previousMid
+            );
+            const end = Math.min(
+              cache.height - 1,
+              Math.ceil(band.y + maxHalfWindow),
+              nextMid
+            );
+
+            let integrated = 0;
+            let saturationSum = 0;
+            let count = 0;
+
+            for (let y = start; y <= end; y++) {
+              integrated += profile.residual[y];
+              saturationSum += profile.saturationProfile[y];
+              count++;
+            }
+
+            band.integratedIntensity = integrated;
+            band.intensitySource = intensitySourceSelect.value;
+            band.saturated =
+              count > 0 &&
+              saturationSum / count >= 0.03;
+
+            if (band.saturated) {
+              saturatedBandCount++;
+            }
+          });
+
+          const maximum = Math.max(
+            ...laneBands.map(band =>
+              Number.isFinite(band.integratedIntensity)
+                ? band.integratedIntensity
+                : 0
+            )
+          );
+
+          if (maximum <= 0) {
+            zeroSignalLaneCount++;
+            laneBands.forEach(band => {
+              band.relativeIntensity = null;
+            });
+          } else {
+            laneBands.forEach(band => {
+              band.relativeIntensity =
+                band.integratedIntensity / maximum * 100;
+            });
+          }
+        });
+
+        if (zeroSignalLaneCount) {
+          warnings.push(
+            `${zeroSignalLaneCount} 條 lane 無法取得有效的背景扣除亮度。`
+          );
+        }
+
+        if (saturatedBandCount) {
+          warnings.push(
+            `${saturatedBandCount} 個 band 的局部像素可能飽和；` +
+            "其相對亮度可能被低估，畫面上以 SAT 標示。"
+          );
+        }
+      }
+
+      function estimateBySemilog(
+        band,
+        calibration
+      ) {
+        const model = calibration.model;
+
+        if (
+          !model ||
+          !Number.isFinite(model.slope) ||
+          model.slope >= 0
+        ) {
+          return null;
+        }
+
+        const logBp =
+          model.intercept + model.slope * band.y;
+        const bp = 10 ** logBp;
+
+        if (!Number.isFinite(bp) || bp <= 0) {
+          return null;
+        }
+
+        return {
+          bp,
+          extrapolated:
+            band.y < calibration.minY ||
+            band.y > calibration.maxY
+        };
+      }
+
+      function estimateByLocalInterpolation(
+        band,
+        calibration
+      ) {
+        const markers = calibration.markers;
+
+        for (const marker of markers) {
+          if (Math.abs(marker.y - band.y) < 0.5) {
+            return {
+              bp: marker.bp,
+              extrapolated: false
+            };
+          }
+        }
+
+        for (let i = 0; i < markers.length - 1; i++) {
+          const upper = markers[i];
+          const lower = markers[i + 1];
+
+          if (
+            band.y >= upper.y &&
+            band.y <= lower.y
+          ) {
+            const denominator = lower.y - upper.y;
+            if (Math.abs(denominator) < 1e-9) {
+              return null;
+            }
+
+            const fraction =
+              (band.y - upper.y) / denominator;
+            const interpolatedLogBp =
+              upper.logBp +
+              fraction * (lower.logBp - upper.logBp);
+
+            return {
+              bp: 10 ** interpolatedLogBp,
+              extrapolated: false
+            };
+          }
+        }
+
+        return null;
+      }
+
+      function calculateBandResults({
+        silent = false
+      } = {}) {
+        clearTimeout(recalculationTimer);
+        clearBandMetrics();
+
+        const parsed = parseLadderSizes();
+        const errors = [...parsed.errors];
+        const warnings = [...parsed.warnings];
+
+        if (!lanesConfirmed) {
+          errors.push("尚未確認 lanes。");
+        }
+
+        if (!bands.length) {
+          errors.push("尚未偵測或新增任何 band。");
+        }
+
+        if (errors.length) {
+          showAnalysisMessages(errors, "error");
+          drawOverlay();
+
+          if (!silent) {
+            setStatus("無法計算 band 大小與亮度，請查看下方提示");
+          }
+          return false;
+        }
+
+        const ladderResult =
+          buildLadderCalibrations(parsed.sizes);
+        errors.push(...ladderResult.errors);
+        warnings.push(...ladderResult.warnings);
+
+        if (errors.length) {
+          showAnalysisMessages(
+            [...errors, ...warnings],
+            "error"
+          );
+          drawOverlay();
+
+          if (!silent) {
+            setStatus("Ladder 對應未通過檢查，尚未計算大小");
+          }
+          return false;
+        }
+
+        if (intensitySourceSelect.value === "display") {
+          warnings.push("亮度取自處理／預覽影像，任何 flat-field、對比、亮度或直方圖均衡都可能改變結果，勿與原始強度混用。");
+        } else {
+          warnings.push("亮度取自幾何對齊的原始影像；背景扣除後的 1D lane profile 面積屬相對訊號（a.u.），非跨 lane 絕對定量。");
+        }
+
+        let cache;
+        try {
+          cache = intensitySourceSelect.value === "raw"
+            ? ensureRawProfileCache() : ensureBandDetectionCache();
+        } catch (err) {
+          showAnalysisMessages([String(err.message)], "error");
+          drawOverlay();
+          return false;
+        }
+        assignBandIntensities(cache, warnings);
+
+        const exactMarkerSizes = new Map();
+        ladderResult.calibrations.forEach(calibration => {
+          calibration.markers.forEach(marker => {
+            exactMarkerSizes.set(
+              marker.band.id,
+              marker.bp
+            );
+          });
+        });
+
+        let estimatedCount = 0;
+        let unavailableCount = 0;
+        let extrapolatedCount = 0;
+        const method = sizeMethodSelect.value;
+
+        bands.forEach(band => {
+          const exactSize = exactMarkerSizes.get(band.id);
+
+          if (Number.isFinite(exactSize)) {
+            band.bp = exactSize;
+            band.extrapolated = false;
+            band.referenceLaneIndex = band.laneIndex;
+            estimatedCount++;
+            return;
+          }
+
+          const targetLane = lanes[band.laneIndex];
+          const calibration = findNearestCalibration(
+            targetLane,
+            ladderResult.calibrations
+          );
+
+          if (!calibration) {
+            unavailableCount++;
+            return;
+          }
+
+          const estimate =
+            method === "local"
+              ? estimateByLocalInterpolation(
+                  band,
+                  calibration
+                )
+              : estimateBySemilog(
+                  band,
+                  calibration
+                );
+
+          if (!estimate) {
+            unavailableCount++;
+            return;
+          }
+
+          band.bp = estimate.bp;
+          band.extrapolated =
+            Boolean(estimate.extrapolated);
+          band.referenceLaneIndex =
+            calibration.lane.index;
+          estimatedCount++;
+
+          if (band.extrapolated) {
+            extrapolatedCount++;
+          }
+        });
+
+        if (method === "local" && unavailableCount) {
+          warnings.push(
+            `${unavailableCount} 個 band 位於最近 ladder 的片段範圍之外，` +
+            "局部內插不進行外插，因此未提供大小。"
+          );
+        } else if (unavailableCount) {
+          warnings.push(
+            `${unavailableCount} 個 band 因 ladder 模型無效而無法估算大小。`
+          );
+        }
+
+        if (extrapolatedCount) {
+          warnings.push(
+            `${extrapolatedCount} 個 band 超出 ladder 的最高或最低片段範圍，` +
+            "半對數法使用了外插，可信度較低。"
+          );
+        }
+
+        resultsValid = estimatedCount > 0;
+        hasCalculatedResults = true;
+
+        if (warnings.length) {
+          showAnalysisMessages(warnings, "warning");
+        } else {
+          const validLanes =
+            ladderResult.calibrations
+              .map(item => `L${item.lane.index + 1}`)
+              .join("、");
+
+          showAnalysisMessages(
+            `計算完成。有效 ladder：${validLanes}；` +
+            `已估算 ${estimatedCount} 個 band，未發現明顯警告。`,
+            "success"
+          );
+        }
+
+        updateAnalysisControls();
+        drawOverlay();
+
+        if (!silent) {
+          setStatus(
+            `計算完成：${estimatedCount}/${bands.length} 個 band 有大小結果；` +
+            `亮度來源：${intensitySourceSelect.value === "raw" ? "原始影像" : "處理影像"}；各 lane 最亮 band＝100%`
+          );
+        }
+
+        return true;
+      }
+
+      function scheduleResultRecalculation() {
+        if (!hasCalculatedResults) return;
+
+        clearTimeout(recalculationTimer);
+        recalculationTimer = setTimeout(() => {
+          calculateBandResults({ silent: true });
+        }, 90);
+      }
+
+      function validateLadderCorrespondence() {
+        const parsed = parseLadderSizes();
+        const messages = [
+          ...parsed.errors,
+          ...parsed.warnings
+        ];
+
+        if (parsed.errors.length) {
+          showAnalysisMessages(messages, "error");
+          setStatus("Ladder 片段大小輸入未通過檢查");
+          return;
+        }
+
+        const selected = getSelectedLadderLanes();
+
+        if (!selected.length) {
+          showAnalysisMessages(
+            "尚未勾選任何 ladder lane。",
+            "error"
+          );
+          setStatus("請先勾選 ladder lane");
+          return;
+        }
+
+        let allMatch = true;
+
+        selected.forEach(lane => {
+          const count =
+            getBandsForLane(lane.index).length;
+
+          if (count !== parsed.sizes.length) {
+            allMatch = false;
+            messages.push(
+              `L${lane.index + 1}：${count} 個 band；` +
+              `預期 ${parsed.sizes.length} 個。`
+            );
+          } else {
+            messages.push(
+              `L${lane.index + 1}：${count} 個 band，數量一致。`
+            );
+          }
+        });
+
+        showAnalysisMessages(
+          messages,
+          allMatch ? "success" : "warning"
+        );
+
+        setStatus(
+          allMatch
+            ? "所有已選 ladder lanes 的 band 數量一致"
+            : "部分 ladder lane 的 band 數量不一致，請人工修正"
+        );
+      }
+
+      function getExportLadderSizes() {
+        const parsed = parseLadderSizes();
+        return parsed.errors.length ? [] : parsed.sizes;
+      }
+
+      function getExportLanes() {
+        return lanes.filter(lane =>
+          includeLadderLanesInput.checked || !lane.isLadder
+        );
+      }
+
+      function formatExportBrightness(relativeIntensity) {
+        if (!Number.isFinite(relativeIntensity)) {
+          return "";
+        }
+
+        if (exportBrightnessScaleSelect.value === "percent") {
+          return (relativeIntensity).toFixed(1);
+        }
+
+        return (relativeIntensity / 100).toFixed(3);
+      }
+
+      function escapeCsv(value) {
+        const text = String(value ?? "");
+        if (/[",\r\n]/.test(text)) {
+          return `"${text.replace(/"/g, '""')}"`;
+        }
+        return text;
+      }
+
+      function buildCompactExport() {
+        const lines = [];
+        const ladderSizes = getExportLadderSizes();
+
+        if (
+          includeLadderHeaderInput.checked &&
+          ladderSizes.length
+        ) {
+          lines.push(ladderSizes.join(","));
+        }
+
+        getExportLanes().forEach(lane => {
+          const laneBands = getBandsForLane(lane.index)
+            .filter(band => Number.isFinite(band.bp))
+            .sort((a, b) => b.bp - a.bp);
+
+          const bandText = laneBands
+            .map(band => {
+              const size = Math.round(band.bp);
+              const brightness =
+                formatExportBrightness(
+                  band.relativeIntensity
+                );
+
+              return brightness
+                ? `${size}:${brightness}`
+                : `${size}:`;
+            })
+            .join(",");
+
+          const laneName = `L${lane.index + 1}`;
+          const prefix = includeLaneNameInput.checked
+            ? `${laneName}\t`
+            : "";
+
+          lines.push(prefix + bandText);
+        });
+
+        return lines.join("\n");
+      }
+
+      function buildLongTableExport(delimiter) {
+        const rows = [[
+          "lane",
+          "lane_type",
+          "band_order",
+          "size_bp",
+          "relative_brightness",
+          "integrated_intensity_1d_au",
+          "intensity_image_source",
+          "y_pixel",
+          "reference_ladder",
+          "saturated",
+          "extrapolated",
+          "source"
+        ]];
+
+        getExportLanes().forEach(lane => {
+          const laneBands = getBandsForLane(lane.index)
+            .slice()
+            .sort((a, b) => a.y - b.y);
+
+          laneBands.forEach((band, index) => {
+            rows.push([
+              `L${lane.index + 1}`,
+              lane.isLadder ? "ladder" : "sample",
+              index + 1,
+              Number.isFinite(band.bp)
+                ? Math.round(band.bp)
+                : "",
+              formatExportBrightness(
+                band.relativeIntensity
+              ),
+              Number.isFinite(band.integratedIntensity)
+                ? band.integratedIntensity.toFixed(3)
+                : "",
+              band.intensitySource || intensitySourceSelect.value,
+              Number.isFinite(band.y) ? band.y.toFixed(1) : "",
+              Number.isInteger(band.referenceLaneIndex)
+                ? `L${band.referenceLaneIndex + 1}`
+                : "",
+              band.saturated ? "yes" : "no",
+              band.extrapolated ? "yes" : "no",
+              band.source || ""
+            ]);
+          });
+        });
+
+        if (delimiter === ",") {
+          return rows
+            .map(row => row.map(escapeCsv).join(","))
+            .join("\n");
+        }
+
+        return rows
+          .map(row => row.join("\t"))
+          .join("\n");
+      }
+
+      function buildBinaryMatrixExport() {
+        // Experimental, same-gel co-migration bins; not homology or validated genotypes.
+        const tolerancePercent = clamp(Number(matrixToleranceInput.value) || 4,0.5,15);
+        const logTolerance = Math.log1p(tolerancePercent / 100);
+        const allLanes = getExportLanes();
+        const samples = allLanes.map(lane => ({
+          lane,
+          known: getBandsForLane(lane.index)
+            .filter(b=>Number.isFinite(b.bp)&&b.bp>0),
+          unresolved: getBandsForLane(lane.index)
+            .filter(b=>!Number.isFinite(b.bp)).length
+        }));
+        const allBands = samples.flatMap(s=>s.known.map(b=>({
+          laneIndex:s.lane.index, bp:b.bp
+        }))).sort((a,b)=>b.bp-a.bp);
+        const bins=[];
+        for(const b of allBands){
+          let nearest=-1,delta=Infinity;
+          bins.forEach((bin,i)=>{
+            // The first band is a fixed anchor: prevent centroid drift
+            // from chaining unrelated peaks into one provisional bin.
+            const d=Math.abs(Math.log(b.bp/bin.anchorBp));
+            if(d<=logTolerance&&d<delta){nearest=i;delta=d;}
+          });
+          if(nearest<0) bins.push({bp:b.bp,anchorBp:b.bp,members:[b]});
+          else {
+            const bin=bins[nearest];
+            bin.members.push(b);
+            bin.bp=Math.exp(bin.members.reduce((a,m)=>a+Math.log(m.bp),0)/bin.members.length);
+          }
+        }
+        bins.sort((a,b)=>b.bp-a.bp);
+        const labels = bins.map((bin,i)=>`bin${i+1}_${Math.round(bin.bp)}bp`);
+        const rows = [["lane","unresolved_bands",...labels]];
+        let collisions=0;
+        samples.forEach(s=>{
+          const tally=new Uint16Array(bins.length);
+          bins.forEach((bin,i) => {
+            tally[i] = bin.members.filter(m=>m.laneIndex===s.lane.index).length;
+            if (tally[i] > 1) collisions += tally[i] - 1;
+          });
+          rows.push([`L${s.lane.index+1}`,s.unresolved,...Array.from(tally,n=>n>0?1:0)]);
+        });
+        return {text:rows.map(row=>row.map(escapeCsv).join(",")).join("\n"),
+          bins:bins.length, unresolved:samples.reduce((a,s)=>a+s.unresolved,0), collisions};
+      }
+
+      function buildExportText() {
+        const format = exportFormatSelect.value;
+        if (format === "matrix-csv") return buildBinaryMatrixExport().text;
+
+        if (format === "table-csv") {
+          return buildLongTableExport(",");
+        }
+
+        if (format === "table-tsv") {
+          return buildLongTableExport("\t");
+        }
+
+        return buildCompactExport();
+      }
+
+      function updateExportPreview() {
+        matrixToleranceControl.hidden = exportFormatSelect.value !== "matrix-csv";
+        const text = buildExportText();
+        exportPreview.value = text;
+
+        const exportedLanes = getExportLanes();
+        const exportedBands = exportedLanes.reduce(
+          (sum, lane) =>
+            sum + getBandsForLane(lane.index).length,
+          0
+        );
+
+        const matrix = exportFormatSelect.value === "matrix-csv"
+          ? buildBinaryMatrixExport() : null;
+        exportSummary.textContent = matrix
+          ? `${exportedLanes.length} lanes、${matrix.bins} 個 provisional 大小分組；` +
+            `未能估算大小：${matrix.unresolved} band；同 lane 重複分入同組：${matrix.collisions}。` +
+            `0 表示在當前標記中未檢出，不等於生物學上確認缺失；限同膠探索性比較。`
+          : `${exportedLanes.length} lanes；` +
+          `${exportedBands} bands；` +
+          `${text.length.toLocaleString()} characters`;
+      }
+
+      function openExportDialog() {
+        if (!resultsValid) {
+          alert(
+            "請先完成「計算大小與亮度」，並確認至少有一個有效結果。"
+          );
+          return;
+        }
+
+        updateExportPreview();
+        exportModal.hidden = false;
+        exportFormatSelect.focus();
+      }
+
+      function closeExportDialog() {
+        exportModal.hidden = true;
+      }
+
+      async function copyExportText() {
+        const text = exportPreview.value;
+
+        try {
+          await navigator.clipboard.writeText(text);
+          setStatus("匯出結果已複製到剪貼簿");
+        } catch (_) {
+          exportPreview.removeAttribute("readonly");
+          exportPreview.select();
+
+          const copied = document.execCommand("copy");
+          exportPreview.setAttribute("readonly", "");
+
+          if (copied) {
+            setStatus("匯出結果已複製到剪貼簿");
+          } else {
+            alert("瀏覽器未允許自動複製，請在預覽框中手動複製。");
+          }
+        }
+      }
+
+      function downloadExportText() {
+        const format = exportFormatSelect.value;
+        const extension =
+          (format === "table-csv" || format === "matrix-csv")
+            ? "csv"
+            : format === "table-tsv"
+              ? "tsv"
+              : "txt";
+        const mime =
+          (format === "table-csv" || format === "matrix-csv")
+            ? "text/csv;charset=utf-8"
+            : "text/plain;charset=utf-8";
+        const baseName = projectBaseName(
+          originalFileMeta?.name || "gel_result"
+        );
+        const suffix = format === "matrix-csv" ? "_band_matrix" :
+          format === "compact" ? "_bands" : "_band_table";
+
+        const blob = new Blob(
+          [exportPreview.value],
+          { type: mime }
+        );
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download =
+          `${baseName}${suffix}.${extension}`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setStatus(`已下載：${anchor.download}`);
+      }
+
+      overlayCanvas.addEventListener(
+        "pointerdown",
+        event => {
+          if (!originalBitmap || event.button !== 0) return;
+
+          const point = getCanvasPoint(event);
+
+          if (mode === "none" && lanesConfirmed) {
+            const hitBand = hitTestBand(point);
+            const viewedLane = hitBand?.laneIndex ?? nearestLaneIndex(point.x);
+            if (viewedLane >= 0 && viewedLane !== profileSelectedLane) {
+              profileSelectedLane = viewedLane;
+              profileLaneSelect.value = String(viewedLane);
+              drawOverlay();
+            }
+            if (hitBand) {
+              draggedBand = hitBand;
+              isDragging = true;
+              overlayCanvas.setPointerCapture(
+                event.pointerId
+              );
+              overlayCanvas.style.cursor = "grabbing";
+              drawOverlay();
+              return;
+            }
+          }
+
+          if (mode === "none") return;
+
+          overlayCanvas.setPointerCapture(
+            event.pointerId
+          );
+          isDragging = true;
+          dragStart = point;
+          dragCurrent = point;
+
+          if (mode === "line") {
+            guideLine = {
+              start: dragStart,
+              end: dragStart
+            };
+            rotateBtn.disabled = true;
+          } else if (mode === "crop") {
+            cropRect = {
+              x: dragStart.x,
+              y: dragStart.y,
+              width: 0,
+              height: 0
+            };
+            cropBtn.disabled = true;
+          } else if (mode === "lane-range") {
+            laneRange = {
+              startX: dragStart.x,
+              endX: dragStart.x,
+              y: dragStart.y
+            };
+            lanesConfirmed = false;
+            lanes = [];
+            clearBandData(false);
+            hasCalculatedResults = false;
+            hideAnalysisMessages();
+            rebuildLadderChoices();
+            updateAnalysisControls();
+          }
+
+          drawOverlay();
+        }
+      );
+
+      overlayCanvas.addEventListener(
+        "pointermove",
+        event => {
+          if (!isDragging) return;
+
+          const point = getCanvasPoint(event);
+
+          if (draggedBand) {
+            draggedBand.y = Math.max(
+              0,
+              Math.min(
+                overlayCanvas.height,
+                point.y
+              )
+            );
+            clearBandMetrics();
+            drawOverlay();
+            return;
+          }
+
+          dragCurrent = point;
+
+          if (mode === "line") {
+            guideLine = {
+              start: dragStart,
+              end: dragCurrent
+            };
+          } else if (mode === "crop") {
+            cropRect = normalizeRect(
+              dragStart,
+              dragCurrent
+            );
+          } else if (
+            mode === "lane-range" &&
+            laneRange
+          ) {
+            laneRange.endX = dragCurrent.x;
+            laneRange.y = dragStart.y;
+            updateAnalysisControls();
+          }
+
+          drawOverlay();
+        }
+      );
+
+      function finishPointerDrag(event) {
+        if (!isDragging) return;
+        isDragging = false;
+
+        try {
+          overlayCanvas.releasePointerCapture(
+            event.pointerId
+          );
+        } catch (_) {}
+
+        if (draggedBand) {
+          const laneNumber =
+            draggedBand.laneIndex + 1;
+
+          setStatus(
+            `L${laneNumber} 的 band 已移到 ` +
+            `y=${Math.round(draggedBand.y)} px`
+          );
+
+          draggedBand = null;
+          overlayCanvas.style.cursor =
+            bands.length ? "grab" : "default";
+
+          if (hasCalculatedResults) {
+            scheduleResultRecalculation();
+          } else {
+            drawOverlay();
+          }
+          return;
+        }
+
+        if (mode === "line" && guideLine) {
+          const length = Math.hypot(
+            guideLine.end.x - guideLine.start.x,
+            guideLine.end.y - guideLine.start.y
+          );
+
+          if (length < 10) {
+            guideLine = null;
+            rotateBtn.disabled = true;
+            setStatus("基準線太短，請重新拖曳");
+          } else {
+            rotateBtn.disabled = false;
+
+            const angle =
+              normalizedLineAngleDegrees(
+                guideLine.start,
+                guideLine.end
+              );
+
+            setStatus(
+              `基準線角度：${angle.toFixed(2)}°；` +
+              "可按「依基準線校正水平」"
+            );
+          }
+        }
+
+        if (mode === "crop" && cropRect) {
+          if (
+            cropRect.width < 5 ||
+            cropRect.height < 5
+          ) {
+            cropRect = null;
+            cropBtn.disabled = true;
+            setStatus("裁切框太小，請重新框選");
+          } else {
+            cropBtn.disabled = false;
+            setStatus(
+              `裁切範圍：${Math.round(cropRect.width)} × ` +
+              `${Math.round(cropRect.height)} px`
+            );
+          }
+        }
+
+        if (mode === "lane-range" && laneRange) {
+          const length = Math.abs(
+            laneRange.endX - laneRange.startX
+          );
+
+          if (length < 10) {
+            laneRange = null;
+            confirmLanesBtn.disabled = true;
+            setStatus(
+              "Lane 頭尾距離太短，請重新指定"
+            );
+          } else {
+            updateAnalysisControls();
+            setStatus(
+              `已預覽 ${getLaneCount()} lanes；` +
+              "確認線是否對準後按「確認 lanes」"
+            );
+          }
+        }
+
+        drawOverlay();
+      }
+
+      overlayCanvas.addEventListener(
+        "pointerup",
+        finishPointerDrag
+      );
+      overlayCanvas.addEventListener(
+        "pointercancel",
+        finishPointerDrag
+      );
+
+      overlayCanvas.addEventListener(
+        "contextmenu",
+        event => {
+          if (!lanesConfirmed || !bands.length) return;
+
+          const point = getCanvasPoint(event);
+          const band = hitTestBand(point);
+
+          if (!band) return;
+
+          event.preventDefault();
+          bands = bands.filter(
+            item => item.id !== band.id
+          );
+          clearBandMetrics();
+          updateAnalysisControls();
+          drawOverlay();
+
+          setStatus(
+            `已刪除 L${band.laneIndex + 1} 的 band`
+          );
+
+          if (hasCalculatedResults) {
+            scheduleResultRecalculation();
+          }
+        }
+      );
+
+      overlayCanvas.addEventListener(
+        "dblclick",
+        event => {
+          if (!lanesConfirmed || mode !== "none") return;
+
+          const point = getCanvasPoint(event);
+          const laneIndex = nearestLaneIndex(point.x);
+
+          if (laneIndex < 0) return;
+          profileSelectedLane = laneIndex;
+          profileLaneSelect.value = String(laneIndex);
+
+          bands.push({
+            id: nextBandId++,
+            laneIndex,
+            y: point.y,
+            strength: null,
+            source: "manual"
+          });
+
+          bands.sort(
+            (a, b) =>
+              a.laneIndex - b.laneIndex ||
+              a.y - b.y
+          );
+
+          clearBandMetrics();
+          updateAnalysisControls();
+          drawOverlay();
+
+          setStatus(
+            `已在 L${laneIndex + 1} 新增 band`
+          );
+
+          if (hasCalculatedResults) {
+            scheduleResultRecalculation();
+          }
+        }
+      );
+
+      fitViewBtn.addEventListener(
+        "click",
+        fitImageToWorkspace
+      );
+
+      actualSizeBtn.addEventListener(
+        "click",
+        () => centerImageAtScale(1)
+      );
+
+      workspace.addEventListener(
+        "wheel",
+        event => {
+          if (
+            canvasWrap.hidden ||
+            !imageCanvas.width ||
+            !imageCanvas.height
+          ) {
+            return;
+          }
+
+          event.preventDefault();
+
+          const rect =
+            workspace.getBoundingClientRect();
+          const workspaceX =
+            event.clientX - rect.left;
+          const workspaceY =
+            event.clientY - rect.top;
+          const zoomFactor =
+            Math.exp(-event.deltaY * 0.0015);
+
+          zoomAtWorkspacePoint(
+            viewScale * zoomFactor,
+            workspaceX,
+            workspaceY
+          );
+        },
+        { passive: false }
+      );
+
+      workspace.addEventListener(
+        "pointerdown",
+        event => {
+          if (event.button !== 1) {
+            return;
+          }
+
+          event.preventDefault();
+          viewIsPanning = true;
+          viewPanStart = {
+            clientX: event.clientX,
+            clientY: event.clientY,
+            offsetX: viewOffsetX,
+            offsetY: viewOffsetY
+          };
+          workspace.classList.add("is-panning");
+
+          try {
+            workspace.setPointerCapture(
+              event.pointerId
+            );
+          } catch (_) {}
+        }
+      );
+
+      workspace.addEventListener(
+        "pointermove",
+        event => {
+          if (!viewIsPanning || !viewPanStart) {
+            return;
+          }
+
+          viewOffsetX =
+            viewPanStart.offsetX +
+            event.clientX -
+            viewPanStart.clientX;
+          viewOffsetY =
+            viewPanStart.offsetY +
+            event.clientY -
+            viewPanStart.clientY;
+          viewInitialized = true;
+          applyViewTransform();
+        }
+      );
+
+      function finishViewPan(event) {
+        if (!viewIsPanning) {
+          return;
+        }
+
+        viewIsPanning = false;
+        viewPanStart = null;
+        workspace.classList.remove("is-panning");
+
+        try {
+          workspace.releasePointerCapture(
+            event.pointerId
+          );
+        } catch (_) {}
+      }
+
+      workspace.addEventListener(
+        "pointerup",
+        finishViewPan
+      );
+      workspace.addEventListener(
+        "pointercancel",
+        finishViewPan
+      );
+
+      workspace.addEventListener(
+        "auxclick",
+        event => {
+          if (event.button === 1) {
+            event.preventDefault();
+          }
+        }
+      );
+
+      window.addEventListener(
+        "resize",
+        () => {
+          if (!viewInitialized) {
+            fitImageToWorkspace();
+          }
+        }
+      );
+
+      saveProjectBtn.addEventListener(
+        "click",
+        downloadProjectFile
+      );
+      downloadImageBtn.addEventListener("click", downloadCurrentImage);
+
+      projectInput.addEventListener("change", () => {
+        readProjectFile(projectInput.files?.[0]);
+      });
+
+      fileInput.addEventListener("change", () => {
+        loadImageFile(fileInput.files?.[0]);
+      });
+
+      function handleAdjustmentPreview() {
+        clearTimeout(flatFieldPreviewTimer);
+        clearTimeout(liveDetectionTimer);
+        invalidateBandDetectionCache();
+
+        updateAdjustmentReadouts();
+        renderAdjustedPreview();
+        updateAnalysisControls();
+
+        if (hasCalculatedResults && bands.length) {
+          clearBandMetrics();
+          updateAnalysisControls();
+        }
+        if (
+          autoUpdateBandsInput.checked &&
+          hasRunBandDetection &&
+          lanesConfirmed
+        ) {
+          scheduleLiveBandDetection();
+        } else {
+          scheduleResultRecalculation();
+          if (bands.length) {
+            setStatus(
+              "影像預覽已變更；既有 band 位置已保留，亮度結果將更新"
+            );
+          }
+        }
+      }
+
+      brightnessInput.addEventListener(
+        "input",
+        handleAdjustmentPreview
+      );
+      contrastInput.addEventListener(
+        "input",
+        handleAdjustmentPreview
+      );
+      grayscaleInput.addEventListener(
+        "change",
+        handleAdjustmentPreview
+      );
+      flatFieldInput.addEventListener("change", () => {
+        invalidateFlatFieldPreviewCache();
+        handleAdjustmentPreview();
+      });
+      flatFieldEqualizeInput.addEventListener("change", () => {
+        invalidateFlatFieldPreviewCache();
+        handleAdjustmentPreview();
+      });
+      function handleFlatFieldSliderInput() {
+        invalidateFlatFieldPreviewCache();
+        updateAdjustmentReadouts();
+        clearTimeout(flatFieldPreviewTimer);
+        flatFieldPreviewTimer = setTimeout(handleAdjustmentPreview, 150);
+      }
+      flatFieldRadiusInput.addEventListener("input", handleFlatFieldSliderInput);
+      flatFieldStrengthInput.addEventListener("input", handleFlatFieldSliderInput);
+
+      resetAdjustBtn.addEventListener("click", () => {
+        resetPendingAdjustments(true);
+        invalidateBandDetectionCache();
+        if (hasCalculatedResults && bands.length) {
+          clearBandMetrics();
+          updateAnalysisControls();
+        }
+
+        if (
+          autoUpdateBandsInput.checked &&
+          hasRunBandDetection &&
+          lanesConfirmed
+        ) {
+          scheduleLiveBandDetection();
+        } else {
+          scheduleResultRecalculation();
+          setStatus(
+            "目前的背景、亮度、對比與灰階預覽已重設；既有 band 保留"
+          );
+        }
+      });
+
+      applyAdjustBtn.addEventListener("click", () => {
+        if (
+          !originalBitmap ||
+          !hasPendingAdjustments()
+        ) {
+          return;
+        }
+
+        clearTimeout(flatFieldPreviewTimer);
+        const flatField = getFlatFieldOptions();
+        const previewSource = getPreviewAdjustmentSource();
+
+        const appliedBrightness =
+          Number(brightnessInput.value);
+        const appliedContrast =
+          Number(contrastInput.value);
+        const appliedGrayscale =
+          grayscaleInput.checked;
+
+        applyAdjustmentOperation({
+          brightness: appliedBrightness,
+          contrast: appliedContrast,
+          grayscale: appliedGrayscale,
+          flatField
+        }, previewSource);
+        imageOperations.push({
+          type: "adjust",
+          brightness: appliedBrightness,
+          contrast: appliedContrast,
+          grayscale: appliedGrayscale,
+          flatField
+        });
+        resetPendingAdjustments(false);
+        invalidateBandDetectionCache();
+        syncVisibleCanvasFromWorking();
+        updateAnalysisControls();
+
+        const shouldAutoUpdate =
+          autoUpdateBandsInput.checked &&
+          hasRunBandDetection &&
+          lanesConfirmed;
+
+        if (shouldAutoUpdate) {
+          runBandDetection({
+            silent: true,
+            fromLiveSlider: true
+          });
+        } else if (
+          hasCalculatedResults &&
+          bands.length
+        ) {
+          calculateBandResults({
+            silent: true
+          });
+        } else {
+          drawOverlay();
+        }
+
+        const details = [
+          `亮度 ${appliedBrightness > 0 ? "+" : ""}${appliedBrightness}`,
+          `對比 ${appliedContrast > 0 ? "+" : ""}${appliedContrast}`,
+          flatField.enabled
+            ? `平場校正：${flatField.radius}px／${flatField.strength}%` +
+              (flatField.equalize ? "／直方圖均衡" : "")
+            : "平場校正：否",
+          (appliedGrayscale || flatField.enabled)
+            ? "灰階：是"
+            : "灰階：否"
+        ].join("；");
+
+        setStatus(
+          `影像調整已套用（${details}）；` +
+          (
+            shouldAutoUpdate
+              ? "bands 已依新影像自動更新"
+              : "既有 band 位置已保留"
+          )
+        );
+      });
+
+      undoAdjustBtn.addEventListener("click", () => {
+        if (!originalBitmap || imageOperations.at(-1)?.type !== "adjust") return;
+        clearTimeout(liveDetectionTimer);
+        clearTimeout(flatFieldPreviewTimer);
+        imageOperations.pop();
+        replayImageOperations(imageOperations);
+        resetPendingAdjustments(false);
+        invalidateBandDetectionCache();
+        syncVisibleCanvasFromWorking();
+        updateAnalysisControls();
+        if (autoUpdateBandsInput.checked && hasRunBandDetection && lanesConfirmed) {
+          runBandDetection({ silent: true });
+        } else if (hasCalculatedResults && bands.length) {
+          calculateBandResults({ silent: true });
+        } else {
+          drawOverlay();
+        }
+        setStatus("已撤銷最近一次影像調整；原有 lane 與 band 座標保留");
+      });
+
+      lineModeBtn.addEventListener("click", () => {
+        guideLine = null;
+        rotateBtn.disabled = true;
+        setMode("line");
+      });
+
+      rotateBtn.addEventListener("click", () => {
+        if (!guideLine) return;
+
+        const angle =
+          normalizedLineAngleDegrees(
+            guideLine.start,
+            guideLine.end
+          );
+
+        const appliedRotation = -angle;
+        rotateWorkingImage(appliedRotation);
+        imageOperations.push({
+          type: "rotate",
+          angleDegrees: appliedRotation
+        });
+
+        guideLine = null;
+        cropRect = null;
+        rotateBtn.disabled = true;
+        cropBtn.disabled = true;
+        clearLaneAnalysis(false);
+        invalidateBandDetectionCache();
+
+        syncVisibleCanvasFromWorking();
+        updateAnalysisControls();
+        setMode("crop");
+
+        setStatus(
+          `已旋轉 ${(-angle).toFixed(2)}°；` +
+          "請框選要裁切的範圍"
+        );
+      });
+
+      cropModeBtn.addEventListener("click", () => {
+        cropRect = null;
+        cropBtn.disabled = true;
+        setMode("crop");
+      });
+
+      cropBtn.addEventListener("click", () => {
+        if (!cropRect) return;
+
+        const appliedCrop = cropWorkingImage(cropRect);
+        imageOperations.push({
+          type: "crop",
+          rect: appliedCrop
+        });
+        cropRect = null;
+        guideLine = null;
+        cropBtn.disabled = true;
+        rotateBtn.disabled = true;
+        clearLaneAnalysis(false);
+        invalidateBandDetectionCache();
+
+        syncVisibleCanvasFromWorking();
+        updateAnalysisControls();
+        setMode("none");
+
+        setStatus(
+          `裁切完成：${workingCanvas.width} × ` +
+          `${workingCanvas.height} px`
+        );
+      });
+
+      resetBtn.addEventListener("click", () => {
+        if (!originalBitmap) return;
+
+        initializeWorkingCanvasFromOriginal();
+        imageOperations = [];
+
+        guideLine = null;
+        cropRect = null;
+        rotateBtn.disabled = true;
+        cropBtn.disabled = true;
+        resetPendingAdjustments(false);
+        clearLaneAnalysis(false);
+        invalidateBandDetectionCache();
+
+        syncVisibleCanvasFromWorking();
+        updateAnalysisControls();
+        setMode("line");
+
+        setStatus(
+          `已回到原圖：${originalBitmap.width} × ` +
+          `${originalBitmap.height} px`
+        );
+      });
+
+      laneCountInput.addEventListener(
+        "input",
+        () => {
+          const typed = getTypedLaneCount();
+
+          // 不在 input 過程中強制改寫欄位，因此輸入 12 時，
+          // 中間狀態「1」不會被程式吃掉。
+          if (typed === null) {
+            return;
+          }
+
+          laneCountCommitted = typed;
+          invalidateConfirmedLanesForCountChange(
+            typed
+          );
+        }
+      );
+
+      laneCountInput.addEventListener(
+        "change",
+        () => {
+          const count = commitLaneCount();
+          invalidateConfirmedLanesForCountChange(
+            count
+          );
+        }
+      );
+
+      laneCountInput.addEventListener(
+        "blur",
+        () => {
+          const count = commitLaneCount();
+
+          if (laneRange && !lanesConfirmed) {
+            updateAnalysisControls();
+            drawOverlay();
+          }
+        }
+      );
+
+      laneRangeBtn.addEventListener("click", () => {
+        laneRange = null;
+        lanes = [];
+        lanesConfirmed = false;
+        clearBandData(false);
+        hasCalculatedResults = false;
+        hideAnalysisMessages();
+        rebuildLadderChoices();
+        updateAnalysisControls();
+        setMode("lane-range");
+      });
+
+      confirmLanesBtn.addEventListener(
+        "click",
+        () => {
+          if (!laneRange) return;
+
+          commitLaneCount();
+
+          lanes = getLaneGeometry();
+          lanesConfirmed = true;
+          clearBandData(false);
+          hasCalculatedResults = false;
+          hideAnalysisMessages();
+          invalidateBandDetectionCache();
+          rebuildLadderChoices();
+          updateAnalysisControls();
+          setMode("none");
+
+          setStatus(
+            `${lanes.length} 條 lanes 已確認；` +
+            "接著可勾選 ladder 並偵測 bands"
+          );
+        }
+      );
+
+      clearLanesBtn.addEventListener("click", () => {
+        clearLaneAnalysis(true);
+        setMode("none");
+        setStatus("Lane 與 band 設定已清除");
+      });
+
+      bandSensitivityInput.addEventListener(
+        "input",
+        () => {
+          bandSensitivityValue.textContent =
+            bandSensitivityInput.value;
+          scheduleProfileRender();
+
+          if (autoUpdateBandsInput.checked) {
+            scheduleLiveBandDetection();
+          } else if (bands.length) {
+            setStatus(
+              `敏感度已改為 ${bandSensitivityInput.value}；既有 band 保留`
+            );
+          }
+        }
+      );
+
+      autoUpdateBandsInput.addEventListener(
+        "change",
+        () => {
+          clearTimeout(liveDetectionTimer);
+
+          if (autoUpdateBandsInput.checked) {
+            setStatus(
+              "已開啟自動更新 bands；後續影像或敏感度調整會覆蓋人工修正"
+            );
+          } else {
+            setStatus(
+              "已關閉自動更新 bands；後續調整會保留既有 band"
+            );
+          }
+        }
+      );
+
+      detectBandsBtn.addEventListener(
+        "click",
+        () => {
+          runBandDetection();
+        }
+      );
+
+      clearBandsBtn.addEventListener("click", () => {
+        clearBandData(true);
+        hasCalculatedResults = false;
+        hideAnalysisMessages();
+        setMode("none");
+        updateAnalysisControls();
+        setStatus("所有 band 點已清除");
+      });
+
+      ladderSizesInput.addEventListener(
+        "input",
+        () => {
+          updateLadderSizeSummary();
+          clearBandMetrics();
+
+          if (hasCalculatedResults) {
+            scheduleResultRecalculation();
+          } else {
+            drawOverlay();
+          }
+        }
+      );
+
+      validateLadderBtn.addEventListener(
+        "click",
+        validateLadderCorrespondence
+      );
+
+      sizeMethodSelect.addEventListener(
+        "change",
+        () => {
+          clearBandMetrics();
+
+          if (hasCalculatedResults) {
+            calculateBandResults({ silent: true });
+          } else {
+            drawOverlay();
+          }
+        }
+      );
+
+      bandLabelModeSelect.addEventListener(
+        "change",
+        drawOverlay
+      );
+
+      showBandMarkersInput.addEventListener(
+        "change",
+        drawOverlay
+      );
+      intensitySourceSelect.addEventListener("change", () => {
+        clearBandMetrics();
+        updateAnalysisControls();
+        if (hasCalculatedResults && bands.length) calculateBandResults({silent:true});
+        else drawOverlay();
+      });
+      profileLaneSelect.addEventListener("change", () => {
+        profileSelectedLane = Number(profileLaneSelect.value);
+        drawOverlay();
+      });
+      showWeakPeaksInput.addEventListener("change", scheduleProfileRender);
+
+      calculateResultsBtn.addEventListener(
+        "click",
+        () => {
+          hasCalculatedResults = true;
+          calculateBandResults();
+        }
+      );
+
+      openExportBtn.addEventListener(
+        "click",
+        openExportDialog
+      );
+
+      closeExportBtn.addEventListener(
+        "click",
+        closeExportDialog
+      );
+
+      exportModal.addEventListener(
+        "pointerdown",
+        event => {
+          if (event.target === exportModal) {
+            closeExportDialog();
+          }
+        }
+      );
+
+      document.addEventListener(
+        "keydown",
+        event => {
+          if (
+            event.key === "Escape" &&
+            !exportModal.hidden
+          ) {
+            closeExportDialog();
+          }
+        }
+      );
+
+      [
+        exportFormatSelect,
+        matrixToleranceInput,
+        exportBrightnessScaleSelect,
+        includeLadderHeaderInput,
+        includeLaneNameInput,
+        includeLadderLanesInput
+      ].forEach(control => {
+        control.addEventListener(
+          "change",
+          updateExportPreview
+        );
+      });
+
+      copyExportBtn.addEventListener(
+        "click",
+        copyExportText
+      );
+
+      downloadExportBtn.addEventListener(
+        "click",
+        downloadExportText
+      );
+
+      updateLadderSizeSummary();
+      updateAnalysisControls();
+      rebuildLadderChoices();
+      scheduleProfileRender();
+    })();
+  </script>
+</body>
+</html>
