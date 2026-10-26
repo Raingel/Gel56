@@ -5815,6 +5815,15 @@
         }
       };
 
+      window.Gel56FigureApplyOptions = ({ laneMode, bandMode, markers }) => {
+        if (!lanesConfirmed) return;
+        laneDisplayModeSelect.value = laneMode === "sample" ? "sample" : "lane";
+        bandLabelModeSelect.value = ["none","size","brightness","both"].includes(bandMode)
+          ? bandMode : "both";
+        showBandMarkersInput.checked = Boolean(markers);
+        drawOverlay();
+      };
+
       // This read-only snapshot is used by the SVG/JPG figure exporter.
       // Band sizes and intensities are taken from the already computed analysis.
       window.Gel56FigureSnapshot = () => {
