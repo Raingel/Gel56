@@ -1100,6 +1100,14 @@
 
     <span class="panel-note"><span class="help-tip" tabindex="0" role="note" data-tip="原始影像模式保留原始像素強度，不受 flat-field、亮度、對比或直方圖均衡影響。兩種模式都先扣除各 lane 的縱向背景；亮度仍僅限 lane 內相對比較。">?</span></span>
 
+    <label class="field-control" for="laneDisplayModeSelect">
+      <span>Lane 顯示名稱</span>
+      <select id="laneDisplayModeSelect" disabled>
+        <option value="lane">L1、L2…</option>
+        <option value="sample">樣本名稱</option>
+      </select>
+    </label>
+
     <label class="field-control" for="bandLabelModeSelect">
       <span>Band 標示內容</span>
       <select id="bandLabelModeSelect" disabled>
@@ -1117,6 +1125,7 @@
 
     <button id="calculateResultsBtn" class="primary" disabled>計算大小與亮度</button>
     <button id="openExportBtn" disabled>匯出結果</button>
+    <div class="tool-action"><button id="openFigureExportBtn" type="button" disabled>匯出分析畫面（SVG / JPG）</button><span class="help-tip" tabindex="0" role="note" data-tip="匯出目前的電泳圖與 lane、band 標記。SVG 的文字和標記是向量元素，背景照片仍為圖片。">?</span></div>
     <div class="tool-action"><button id="openDendrogramBtn" type="button">指紋分群圖表</button><span class="help-tip" tabindex="0" role="note" data-tip="由同一份 1/0 band matrix 製作 UPGMA、Dice heatmap 及 PCoA。這些圖呈現指紋相似度，不是親緣演化樹。">?</span></div>
 
     <div id="analysisWarnings" class="warning-panel" hidden aria-live="polite"></div>
@@ -1291,6 +1300,8 @@
       const intensitySourceSelect = document.getElementById("intensitySourceSelect");
       const sizeMethodSelect = document.getElementById("sizeMethodSelect");
       const bandLabelModeSelect = document.getElementById("bandLabelModeSelect");
+      const laneDisplayModeSelect = document.getElementById("laneDisplayModeSelect");
+      const openFigureExportBtn = document.getElementById("openFigureExportBtn");
       const showBandMarkersInput = document.getElementById("showBandMarkersInput");
       const calculateResultsBtn = document.getElementById("calculateResultsBtn");
       const openExportBtn = document.getElementById("openExportBtn");
@@ -1940,6 +1951,8 @@
 
         sizeMethodSelect.disabled = !lanesConfirmed;
         bandLabelModeSelect.disabled = !lanesConfirmed;
+        laneDisplayModeSelect.disabled = !lanesConfirmed;
+        openFigureExportBtn.disabled = !hasImage || !lanesConfirmed;
         showBandMarkersInput.disabled = !lanesConfirmed;
         calculateResultsBtn.disabled =
           !lanesConfirmed || bands.length === 0;
@@ -2375,6 +2388,7 @@
             ladderSizesText: ladderSizesInput.value,
             sizeMethod: sizeMethodSelect.value,
             bandLabelMode: bandLabelModeSelect.value,
+            laneDisplayMode: laneDisplayModeSelect.value,
             showBandMarkers: showBandMarkersInput.checked,
             hasCalculatedResults,
             resultsValid,
@@ -2662,6 +2676,8 @@
         ].includes(savedAnalysis.bandLabelMode)
           ? savedAnalysis.bandLabelMode
           : "both";
+        laneDisplayModeSelect.value =
+          savedAnalysis.laneDisplayMode === "sample" ? "sample" : "lane";
         showBandMarkersInput.checked =
           savedAnalysis.showBandMarkers !== false;
 
@@ -3006,7 +3022,9 @@
           overlayCtx.textAlign = "center";
           overlayCtx.textBaseline = "top";
 
-          const label = isLadder ? `L${index + 1} M` : `L${index + 1}`;
+          const shortLabel = isLadder ? `L${index + 1} M` : `L${index + 1}`;
+          const label = lanesConfirmed && laneDisplayModeSelect.value === "sample"
+            ? getLaneName(lane) : shortLabel;
           overlayCtx.strokeStyle = "rgba(0,0,0,.85)";
           overlayCtx.lineWidth = Math.max(3, overlayCanvas.width / 600);
           overlayCtx.strokeText(label, lane.x, 5);
@@ -5701,6 +5719,7 @@
         "change",
         drawOverlay
       );
+      laneDisplayModeSelect.addEventListener("change", drawOverlay);
 
       showBandMarkersInput.addEventListener(
         "change",
@@ -5796,6 +5815,41 @@
         }
       };
 
+      // This read-only snapshot is used by the SVG/JPG figure exporter.
+      // Band sizes and intensities are taken from the already computed analysis.
+      window.Gel56FigureSnapshot = () => {
+        if (!originalBitmap || !lanesConfirmed || !imageCanvas.width) {
+          throw Error("請先載入圖片並確認 lanes。");
+        }
+        clearTimeout(flatFieldPreviewTimer);
+        renderAdjustedPreview();
+        return {
+          imageDataUrl: imageCanvas.toDataURL("image/png"),
+          width: imageCanvas.width,
+          height: imageCanvas.height,
+          imageName: originalFileMeta?.name || "gel_image",
+          selectedLaneMode: laneDisplayModeSelect.value,
+          selectedBandMode: bandLabelModeSelect.value,
+          showMarkers: showBandMarkersInput.checked,
+          resultsValid,
+          lanes: lanes.map((lane, index) => ({
+            index,
+            x: lane.x,
+            width: lane.width,
+            isLadder: Boolean(lane.isLadder),
+            sampleName: getLaneName(lane)
+          })),
+          bands: bands.map(band => ({
+            laneIndex: band.laneIndex,
+            y: band.y,
+            bp: Number.isFinite(band.bp) ? band.bp : null,
+            relativeIntensity: Number.isFinite(band.relativeIntensity)
+              ? band.relativeIntensity : null,
+            saturated: Boolean(band.saturated)
+          }))
+        };
+      };
+
       updateLadderSizeSummary();
       updateAnalysisControls();
       rebuildLadderChoices();
@@ -5804,5 +5858,6 @@
   </script>
   <script src="./i18n.js"></script>
   <script src="./upgma.js"></script>
+  <script src="./figure-export.js"></script>
 </body>
 </html>
