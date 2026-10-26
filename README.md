@@ -17,6 +17,8 @@ Gel56 runs in your browser. No installation or server upload is needed. The inte
 - Estimate fragment sizes from a DNA ladder using local log-linear interpolation (default) or monotone PCHIP interpolation.
 - Measure relative band intensity within each lane.
 - Export band data as CSV or TSV, or make an exploratory presence/absence matrix.
+- Export the annotated gel view as SVG (editable lane labels, markers, and text over an embedded raster image) or JPG (flattened image).
+- Choose L1/L2 labels or saved sample names, and show band sizes, relative brightness, both, or neither.
 - Name each lane or sample. Names are saved in `.gelproj` and included in result tables and charts.
 - View Dice/UPGMA dendrograms, pairwise similarity heatmaps, and 2D PCoA plots from the same band matrix.
 - Use the current matrix or paste a CSV; export each chart as SVG and UPGMA as Newick.
@@ -31,6 +33,8 @@ Gel56 runs in your browser. No installation or server upload is needed. The inte
 5. Mark the ladder lanes, enter sample names, then review band calls and enter ladder fragment sizes.
 6. Calculate fragment sizes, export the results, or open Fingerprint charts for UPGMA, heatmap and PCoA.
 7. Save the `.gelproj` file to continue later.
+
+For annotated figure export, confirm lanes and open **Export annotated image (SVG / JPG)** in Step 10. The export uses the current gel image and label settings. SVG editing depends on the PowerPoint version and may require **Convert to Shape**; the original gel photograph remains a raster image.
 
 ## Notes
 
