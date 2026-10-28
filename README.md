@@ -19,6 +19,8 @@ Gel56 runs in your browser. No installation or server upload is needed. The inte
 - Export band data as CSV or TSV, or make an exploratory presence/absence matrix.
 - Export the annotated gel view as SVG (editable lane labels, markers, and text over an embedded raster image) or JPG (flattened image).
 - Choose L1/L2 labels or saved sample names, and show band sizes, relative brightness, both, or neither.
+- Adjust lane-label font size (8–48 px) directly in the figure exporter. The chosen size is saved in `.gelproj`.
+- Choose **Ladder sizes only** to label ladder bands in bp while leaving sample band values unlabeled; band markers and lane lines remain independently switchable.
 - Name each lane or sample. Names are saved in `.gelproj` and included in result tables and charts.
 - View Dice/UPGMA dendrograms, pairwise similarity heatmaps, and 2D PCoA plots from the same band matrix.
 - Use the current matrix or paste a CSV; export each chart as SVG and UPGMA as Newick.
