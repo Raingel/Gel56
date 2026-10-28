@@ -1115,6 +1115,7 @@
         <option value="size">顯示片段大小</option>
         <option value="brightness">顯示 lane 內相對亮度</option>
         <option value="both" selected>同時顯示大小與相對亮度</option>
+        <option value="ladder-size">僅標示 Ladder 片段大小（樣本不標）</option>
       </select>
     </label>
 
@@ -1366,6 +1367,7 @@
       let laneNameDrafts = [];
       let lanesConfirmed = false;
       let laneCountCommitted = 24;
+      let figureLaneFontSize = 16;
 
       let bands = [];
       let nextBandId = 1;
@@ -2389,6 +2391,7 @@
             sizeMethod: sizeMethodSelect.value,
             bandLabelMode: bandLabelModeSelect.value,
             laneDisplayMode: laneDisplayModeSelect.value,
+            figureLaneFontSize,
             showBandMarkers: showBandMarkersInput.checked,
             hasCalculatedResults,
             resultsValid,
@@ -2672,12 +2675,15 @@
           "none",
           "size",
           "brightness",
-          "both"
+          "both",
+          "ladder-size"
         ].includes(savedAnalysis.bandLabelMode)
           ? savedAnalysis.bandLabelMode
           : "both";
         laneDisplayModeSelect.value =
           savedAnalysis.laneDisplayMode === "sample" ? "sample" : "lane";
+        figureLaneFontSize = Math.max(8, Math.min(48,
+          Number(savedAnalysis.figureLaneFontSize) || 16));
         showBandMarkersInput.checked =
           savedAnalysis.showBandMarkers !== false;
 
@@ -3060,10 +3066,14 @@
         const modeValue = bandLabelModeSelect.value;
         const parts = [];
 
-        if (modeValue === "size" || modeValue === "both") {
+        if (modeValue === "ladder-size" && !lanes[band.laneIndex]?.isLadder) {
+          return "";
+        }
+
+        if (modeValue === "size" || modeValue === "both" || modeValue === "ladder-size") {
           if (Number.isFinite(band.bp)) {
             parts.push(`${bpFormatter.format(Math.round(band.bp))} bp`);
-          } else if (resultsValid) {
+          } else if (resultsValid && modeValue !== "ladder-size") {
             parts.push("size: —");
           }
         }
@@ -3076,7 +3086,7 @@
           }
         }
 
-        if (band.saturated) {
+        if (band.saturated && modeValue !== "ladder-size") {
           parts.push("SAT");
         }
 
@@ -5815,12 +5825,15 @@
         }
       };
 
-      window.Gel56FigureApplyOptions = ({ laneMode, bandMode, markers }) => {
+      window.Gel56FigureApplyOptions = ({ laneMode, bandMode, markers, laneFontSize }) => {
         if (!lanesConfirmed) return;
         laneDisplayModeSelect.value = laneMode === "sample" ? "sample" : "lane";
-        bandLabelModeSelect.value = ["none","size","brightness","both"].includes(bandMode)
+        bandLabelModeSelect.value = ["none","size","brightness","both","ladder-size"].includes(bandMode)
           ? bandMode : "both";
         showBandMarkersInput.checked = Boolean(markers);
+        if (Number.isFinite(Number(laneFontSize))) {
+          figureLaneFontSize = Math.max(8, Math.min(48, Math.round(Number(laneFontSize))));
+        }
         drawOverlay();
       };
 
@@ -5839,6 +5852,7 @@
           imageName: originalFileMeta?.name || "gel_image",
           selectedLaneMode: laneDisplayModeSelect.value,
           selectedBandMode: bandLabelModeSelect.value,
+          selectedLaneFontSize: figureLaneFontSize,
           showMarkers: showBandMarkersInput.checked,
           resultsValid,
           lanes: lanes.map((lane, index) => ({
