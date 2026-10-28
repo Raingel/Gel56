@@ -21,7 +21,10 @@ modal.innerHTML=[
 '<label class="field-control" for="figBandMode"><span>Band 標示</span><select id="figBandMode" style="'+selectStyle+'">',
 '<option value="none">不顯示數值</option><option value="size">顯示片段大小</option>',
 '<option value="brightness">顯示 lane 內相對亮度</option><option value="both">同時顯示大小與相對亮度</option>',
+'<option value="ladder-size">僅標示 Ladder 片段大小（樣本不標）</option>',
 '</select></label>',
+'<label class="field-control" for="figLaneFontSize"><span>Lane 名稱字體大小 <output id="figLaneFontSizeValue" for="figLaneFontSize">16 px</output></span>',
+'<input id="figLaneFontSize" type="range" min="8" max="48" step="1" value="16" aria-label="Lane 名稱字體大小"></label>',
 '<label class="field-control" for="figFormat"><span>檔案格式</span><select id="figFormat" style="'+selectStyle+'">',
 '<option value="svg">SVG（可編輯標記）</option><option value="jpg">JPG（圖片）</option></select></label>',
 '<div class="field-control"><span>標記</span>',
@@ -36,6 +39,7 @@ modal.innerHTML=[
 document.body.appendChild(modal);
 const laneMode=$("figLaneMode"),bandMode=$("figBandMode"),
   format=$("figFormat"),markers=$("figShowMarkers"),guides=$("figShowGuides"),
+  laneFontControl=$("figLaneFontSize"),laneFontOutput=$("figLaneFontSizeValue"),
   preview=$("figPreview"),downloadButton=$("figDownload"),status=$("figStatus");
 let scene=null;
 function showStatus(message,failed=false){status.textContent=message;status.style.color=failed?"#ffa4a4":"";}
@@ -61,17 +65,25 @@ function bandText(band,mode,hasResults){
   return chunks.join(" · ");
 }
 function getOptions(){
-  return {laneMode:laneMode.value,bandMode:bandMode.value,markers:markers.checked,guides:guides.checked};
+  return {
+    laneMode:laneMode.value,
+    bandMode:bandMode.value,
+    laneFontSize:Math.max(8,Math.min(48,Number(laneFontControl.value)||16)),
+    markers:markers.checked,
+    guides:guides.checked
+  };
 }
 function makeScene(snapshot,opts){
   const W=snapshot.width,H=snapshot.height;
   const isNames=opts.laneMode==="sample";
-  const laneFont=Math.max(10,Math.min(18,W/Math.max(45,snapshot.lanes.length*2.5)));
-  const maxLen=Math.max(0,...snapshot.lanes.map(l=>String(l.sampleName||"").length));
-  const header=isNames?Math.ceil(Math.min(350,Math.max(65,maxLen*laneFont*0.66+24))):42;
+  const laneFont=Math.max(8,Math.min(48,Number(opts.laneFontSize)||16));
+  const measure=document.createElement("canvas").getContext("2d");
+  measure.font=laneFont+"px Arial, sans-serif";
+  const labelWidth=Math.max(0,...snapshot.lanes.map(l=>measure.measureText(String(l.sampleName||"")).width));
+  // For rotated sample names, reserve enough room for the FULL label at the selected font size.
+  const header=isNames?Math.ceil(Math.max(65,labelWidth+20)):Math.ceil(Math.max(42,laneFont+24));
   const bandFont=Math.max(11,W/145);
   const padX=Math.max(3,bandFont*.28),padY=Math.max(2,bandFont*.18);
-  const measure=document.createElement("canvas").getContext("2d");
   measure.font=bandFont+"px Arial, sans-serif";
   const items=[];
   const push=(type,obj)=>items.push(Object.assign({type},obj));
@@ -82,8 +94,7 @@ function makeScene(snapshot,opts){
       push("text",{x:x+laneFont*.2,y:header-9,text:label,fill:"#1a2d3a",size:laneFont,angle:-90,align:"start"});
     }else{
       push("text",{x,y:header-11,text:label,fill:"#1a2d3a",
-        size:Math.max(9,Math.min(17,W/Math.max(60,snapshot.lanes.length*2.5))),
-        angle:0,align:"center"});
+        size:laneFont,angle:0,align:"center"});
     }
     if(opts.guides){
       push("line",{x1:x,y1:header,x2:x,y2:header+H,
@@ -101,7 +112,8 @@ function makeScene(snapshot,opts){
         fill:color,stroke:"#162016",width:Math.max(1.5,W/1000)});
     }
     if(opts.bandMode==="none")continue;
-    const label=bandText(band,opts.bandMode,snapshot.resultsValid);
+    if(opts.bandMode==="ladder-size" && (!lane.isLadder || !Number.isFinite(band.bp)))continue;
+    const label=bandText(band,opts.bandMode==="ladder-size"?"size":opts.bandMode,snapshot.resultsValid);
     if(!label)continue;
     const tw=measure.measureText(label).width;
     const right=lane.x+lane.width*.45+tw+padX*2<W;
@@ -191,8 +203,9 @@ async function makeJPEG(result){
 }
 function rebuild(){
   try{
+    laneFontOutput.textContent=laneFontControl.value+" px";
     window.Gel56FigureApplyOptions?.({laneMode:laneMode.value,bandMode:bandMode.value,
-      markers:markers.checked});
+      markers:markers.checked,laneFontSize:Number(laneFontControl.value)});
     const image=window.Gel56FigureSnapshot();
     scene=makeScene(image,getOptions());
     const svg=makeSVG(scene);
@@ -210,6 +223,8 @@ function open(){
     const image=window.Gel56FigureSnapshot();
     laneMode.value=image.selectedLaneMode;bandMode.value=image.selectedBandMode;
     markers.checked=image.showMarkers;guides.checked=true;
+    laneFontControl.value=String(Math.max(8,Math.min(48,Number(image.selectedLaneFontSize)||16)));
+    laneFontOutput.textContent=laneFontControl.value+" px";
     modal.hidden=false;rebuild();$("figClose").focus();
   }catch(e){showStatus(e.message,true);}
 }
@@ -247,6 +262,7 @@ modal.addEventListener("pointerdown",e=>{if(e.target===modal)close();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!modal.hidden)close();});
 [laneMode,bandMode,markers,guides].forEach(control=>
   control.addEventListener("change",rebuild));
+laneFontControl.addEventListener("input",rebuild);
 downloadButton.addEventListener("click",save);
 window.Gel56FigureExport=Object.freeze({makeScene,makeSVG,bandText});
 })();
